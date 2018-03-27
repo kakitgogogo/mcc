@@ -1,0 +1,83 @@
+digraph G {
+node [fontname = "Verdana", fontsize = 10, color="skyblue", shape="record"];
+edge [fontname = "Verdana", fontsize = 10, color="crimson", style="solid"];
+P0[label="{<head>func_def:expr|<type>void(,...)|<params>params|<body>body}"];
+P1[label="{<head>compound_stmt|null|<list>list}"];
+P2[label="{<head>decl|<type>int|<var>var|<init_list>init_list}"];
+P3[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P2:var -> P3:head
+;P4[label="{<head>init|<type>int|offset:0|<value>value}"];
+P5[label="{<head>convert|<type>int|<operand>operand}"];
+P6[label="{<head>float_const|<type>double|value:1.100000}"];
+P5:operand -> P6:head
+;P4:value -> P5:head
+;P2:init_list -> P4:head
+;P1:list -> P2:head
+;P7[label="{<head>decl|<type>double|<var>var|<init_list>init_list}"];
+P8[label="{<head>local_var|<type>double|<name>b|<list>init_list}"];
+P7:var -> P8:head
+;P9[label="{<head>init|<type>double|offset:0|<value>value}"];
+P10[label="{<head>convert|<type>double|<operand>operand}"];
+P11[label="{<head>int_const|<type>int|value:1}"];
+P10:operand -> P11:head
+;P9:value -> P10:head
+;P7:init_list -> P9:head
+;P1:list -> P7:head
+;P12[label="{<head>+|<type>double|<left_operand>left|<right_operand>right}"];
+P13[label="{<head>convert|<type>double|<operand>operand}"];
+P14[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P13:operand -> P14:head
+;P12:left_operand -> P13:head
+;P15[label="{<head>local_var|<type>double|<name>b|<list>init_list}"];
+P12:right_operand -> P15:head
+;P1:list -> P12:head
+;P16[label="{<head>-|<type>double|<left_operand>left|<right_operand>right}"];
+P17[label="{<head>convert|<type>double|<operand>operand}"];
+P18[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P17:operand -> P18:head
+;P16:left_operand -> P17:head
+;P19[label="{<head>local_var|<type>double|<name>b|<list>init_list}"];
+P16:right_operand -> P19:head
+;P1:list -> P16:head
+;P20[label="{<head>=|<type>int|<left_operand>left|<right_operand>right}"];
+P21[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P20:left_operand -> P21:head
+;P22[label="{<head>convert|<type>int|<operand>operand}"];
+P23[label="{<head>*|<type>double|<left_operand>left|<right_operand>right}"];
+P24[label="{<head>convert|<type>double|<operand>operand}"];
+P25[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P24:operand -> P25:head
+;P23:left_operand -> P24:head
+;P26[label="{<head>local_var|<type>double|<name>b|<list>init_list}"];
+P23:right_operand -> P26:head
+;P22:operand -> P23:head
+;P20:right_operand -> P22:head
+;P1:list -> P20:head
+;P27[label="{<head>lt|<type>int|<left_operand>left|<right_operand>right}"];
+P28[label="{<head>convert|<type>double|<operand>operand}"];
+P29[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P28:operand -> P29:head
+;P27:left_operand -> P28:head
+;P30[label="{<head>local_var|<type>double|<name>b|<list>init_list}"];
+P27:right_operand -> P30:head
+;P1:list -> P27:head
+;P31[label="{<head>int_const|<type>unsigned long|value:4}"];
+P1:list -> P31:head
+;P32[label="{<head>decl|<type>char*|<var>var|<init_list>init_list}"];
+P33[label="{<head>local_var|<type>char*|<name>a|<list>init_list}"];
+P32:var -> P33:head
+;P34[label="{<head>init|<type>char*|offset:0|<value>value}"];
+P35[label="{<head>convert|<type>char*|<operand>operand}"];
+P36[label="{<head>string_const|<type>char[6]|value:哈哈}"];
+P35:operand -> P36:head
+;P34:value -> P35:head
+;P32:init_list -> P34:head
+;P1:list -> P32:head
+;P37[label="{<head>int_const|<type>unsigned long|value:8}"];
+P1:list -> P37:head
+;P38[label="{<head>int_const|<type>unsigned long|value:3}"];
+P1:list -> P38:head
+;P39[label="{<head>int_const|<type>unsigned long|value:6}"];
+P1:list -> P39:head
+;P0:body -> P1:head
+;}

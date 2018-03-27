@@ -1,0 +1,14 @@
+'ab'
+'\x'
+'\xGG'
+'\uD800'
+'\u
+'
+'1
+'a, int c = 1;
+"
+"123
+"\xGGgg, int c = 1;
+\uGGGG
+            \as
+/*

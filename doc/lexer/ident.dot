@@ -1,0 +1,9 @@
+digraph G {
+  start[shape=plaintext]
+  0[shape=circle]
+  id[shape=doublecircle]
+
+  start->0	
+  0->id[label="[_A-Za-z{{ucn}}]"]
+  id->id[label="[_A-Za-z0-9{{ucn}}]"]
+}

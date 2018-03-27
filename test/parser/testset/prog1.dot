@@ -1,0 +1,24 @@
+digraph G {
+node [fontname = "Verdana", fontsize = 10, color="skyblue", shape="record"];
+edge [fontname = "Verdana", fontsize = 10, color="crimson", style="solid"];
+P0[label="{<head>func_def:(null)|<type>void(,...)|<params>params|<body>body}"];
+P1[label="{<head>func_def:(null)|<type>int(int,char**)|<params>params|<body>body}"];
+P2[label="{<head>local_var|<type>int|<name>argc|<list>init_list}"];
+P1:params -> P2:head
+;P3[label="{<head>local_var|<type>char**|<name>argv|<list>init_list}"];
+P1:params -> P3:head
+;P4[label="{<head>compound_stmt|null|<list>list}"];
+P5[label="{<head>decl|<type>int|<var>var|<init_list>init_list}"];
+P6[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P5:var -> P6:head
+;P4:list -> P5:head
+;P7[label="{<head>func_call|<type>void|name:printf|<args>args}"];
+P8[label="{<head>convert|<type>char*|<operand>operand}"];
+P9[label="{<head>string_const|<type>char[2]|value:%d}"];
+P8:operand -> P9:head
+;P7:args -> P8:head
+;P10[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P7:args -> P10:head
+;P4:list -> P7:head
+;P1:body -> P4:head
+;}

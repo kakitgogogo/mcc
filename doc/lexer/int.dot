@@ -1,0 +1,32 @@
+digraph G {
+  start[shape=plaintext]
+  0[shape=circle]
+  1[shape=circle]
+  2[shape=circle]
+  3[shape=circle]
+  b_int[shape=doublecircle]
+  o_int[shape=doublecircle]
+  d_int[shape=doublecircle]
+  h_int[shape=doublecircle]
+  int[shape=doublecircle]
+
+  is[shape=plaintext, label="int_suffix -> (u|l|ll|ul|ull|lu||llu)", fontcolor=red]
+
+  start->0	
+  0->d_int[label="[1-9]"]
+  d_int->d_int[label="[0-9]"]
+  0->1[label="0"]
+  1->o_int[label="[0-7]"]
+  o_int->o_int[label="[0-7]"]
+  1->2[label="b"]
+  1->3[label="[xX]"]
+  2->b_int[label="[0-1]"]
+  b_int->b_int[label="[0-1]"]
+  3->h_int[label="[0-9A-Fa-f]"]
+  h_int->h_int[label="[0-9A-Fa-f]"]
+
+  b_int->int[label="int_suffix"]
+  h_int->int[label="int_suffix"]
+  o_int->int[label="int_suffix"]
+  d_int->int[label="int_suffix"]
+}

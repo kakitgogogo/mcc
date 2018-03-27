@@ -1,0 +1,14 @@
+digraph G {
+  start[shape=plaintext]
+  0[shape=circle]
+  1[shape=circle]
+  2[shape=circle]
+  str[shape=doublecircle]
+
+  start->0	
+  0->1[label="(u8|u|U|L)"]
+  1->2[label="\""]
+  0->2[label="\""]
+  2->2[label="({{escape}}|other char)"]
+  2->str[label="\""]
+}

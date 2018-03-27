@@ -1,0 +1,5 @@
+确定有限状态自动机：https://zh.wikipedia.org/wiki/%E7%A1%AE%E5%AE%9A%E6%9C%89%E9%99%90%E7%8A%B6%E6%80%81%E8%87%AA%E5%8A%A8%E6%9C%BA
+
+单椭圆表示状态;
+双椭圆表示终止态;
+{{label}}中的label表示非终结符

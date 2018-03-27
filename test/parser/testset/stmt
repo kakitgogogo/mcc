@@ -1,0 +1,20 @@
+char* stmt() {
+    for(int i = 0; i < 5; ++i) {
+        if(i == 3) {
+            break;
+        }
+        if(i == 4) goto label;
+        continue;
+    }
+
+label:
+
+    return 0;
+}
+
+void func(a, b) 
+int a;
+int b;
+{
+    
+}
