@@ -3,77 +3,77 @@ node [fontname = "Verdana", fontsize = 10, color="skyblue", shape="record"];
 edge [fontname = "Verdana", fontsize = 10, color="crimson", style="solid"];
 P0[label="{<head>func_def:func|<type>int(struct s,struct s*)|<params>params|<body>body}"];
 P1[label="{<head>local_var|<type>struct s|<name>s|<list>init_list}"];
-P0:params -> P1:head
-;P2[label="{<head>local_var|<type>struct s*|<name>sp|<list>init_list}"];
-P0:params -> P2:head
-;P3[label="{<head>compound_stmt|null|<list>list}"];
+P0:params -> P1:head;
+P2[label="{<head>local_var|<type>struct s*|<name>sp|<list>init_list}"];
+P0:params -> P2:head;
+P3[label="{<head>compound_stmt|null|<list>list}"];
 P4[label="{<head>decl|<type>int|<var>var|<init_list>init_list}"];
 P5[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
-P4:var -> P5:head
-;P6[label="{<head>init|<type>int|offset:0|<value>value}"];
+P4:var -> P5:head;
+P6[label="{<head>init|<type>int|offset:0|<value>value}"];
 P7[label="{<head>int_const|<type>int|value:0}"];
-P6:value -> P7:head
-;P4:init_list -> P6:head
-;P3:list -> P4:head
-;P8[label="{<head>decl|<type>int[5]|<var>var|<init_list>init_list}"];
+P6:value -> P7:head;
+P4:init_list -> P6:head;
+P3:list -> P4:head;
+P8[label="{<head>decl|<type>int[5]|<var>var|<init_list>init_list}"];
 P9[label="{<head>local_var|<type>int[5]|<name>arr|<list>init_list}"];
-P8:var -> P9:head
-;P10[label="{<head>init|<type>int|offset:0|<value>value}"];
+P8:var -> P9:head;
+P10[label="{<head>init|<type>int|offset:0|<value>value}"];
 P11[label="{<head>int_const|<type>int|value:0}"];
-P10:value -> P11:head
-;P8:init_list -> P10:head
-;P3:list -> P8:head
-;P12[label="{<head>compound_stmt|null|<list>list}"];
+P10:value -> P11:head;
+P8:init_list -> P10:head;
+P3:list -> P8:head;
+P12[label="{<head>compound_stmt|null|<list>list}"];
 P13[label="{<head>compound_stmt|null|<list>list}"];
 P14[label="{<head>=|<type>int|<left_operand>left|<right_operand>right}"];
 P15[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
-P14:left_operand -> P15:head
-;P16[label="{<head>int_const|<type>int|value:1}"];
-P14:right_operand -> P16:head
-;P13:list -> P14:head
-;P12:list -> P13:head
-;P17[label="{<head>label|null|label:.L0(.L0)}"];
-P12:list -> P17:head
-;P18[label="{<head>if|null|<cond>cond|<then>then|<els>els}"];
+P14:left_operand -> P15:head;
+P16[label="{<head>int_const|<type>int|value:1}"];
+P14:right_operand -> P16:head;
+P13:list -> P14:head;
+P12:list -> P13:head;
+P17[label="{<head>label|null|label:.L0(.L0)}"];
+P12:list -> P17:head;
+P18[label="{<head>if|null|<cond>cond|<then>then|<els>els}"];
 P19[label="{<head>lt|<type>int|<left_operand>left|<right_operand>right}"];
 P20[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
-P19:left_operand -> P20:head
-;P21[label="{<head>int_const|<type>int|value:5}"];
-P19:right_operand -> P21:head
-;P18:cond -> P19:head
-;P22[label="{<head>jump|null|label:.L2(.L2)}"];
-P18:els -> P22:head
-;P12:list -> P18:head
-;P23[label="{<head>compound_stmt|null|<list>list}"];
+P19:left_operand -> P20:head;
+P21[label="{<head>int_const|<type>int|value:5}"];
+P19:right_operand -> P21:head;
+P18:cond -> P19:head;
+P22[label="{<head>jump|null|label:.L2(.L2)}"];
+P18:els -> P22:head;
+P12:list -> P18:head;
+P23[label="{<head>compound_stmt|null|<list>list}"];
 P24[label="{<head>=|<type>int|<left_operand>left|<right_operand>right}"];
 P25[label="{<head>deref|<type>int|<operand>operand}"];
 P26[label="{<head>+|<type>int*|<left_operand>left|<right_operand>right}"];
 P27[label="{<head>convert|<type>int*|<operand>operand}"];
 P28[label="{<head>local_var|<type>int[5]|<name>arr|<list>init_list}"];
-P27:operand -> P28:head
-;P26:left_operand -> P27:head
-;P29[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
-P26:right_operand -> P29:head
-;P25:operand -> P26:head
-;P24:left_operand -> P25:head
-;P30[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
-P24:right_operand -> P30:head
-;P23:list -> P24:head
-;P12:list -> P23:head
-;P31[label="{<head>label|null|label:.L1(.L1)}"];
-P12:list -> P31:head
-;P32[label="{<head>pre_inc|<type>int|<operand>operand}"];
+P27:operand -> P28:head;
+P26:left_operand -> P27:head;
+P29[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
+P26:right_operand -> P29:head;
+P25:operand -> P26:head;
+P24:left_operand -> P25:head;
+P30[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
+P24:right_operand -> P30:head;
+P23:list -> P24:head;
+P12:list -> P23:head;
+P31[label="{<head>label|null|label:.L1(.L1)}"];
+P12:list -> P31:head;
+P32[label="{<head>pre_inc|<type>int|<operand>operand}"];
 P33[label="{<head>local_var|<type>int|<name>i|<list>init_list}"];
-P32:operand -> P33:head
-;P12:list -> P32:head
-;P34[label="{<head>jump|null|label:.L0(.L0)}"];
-P12:list -> P34:head
-;P35[label="{<head>label|null|label:.L2(.L2)}"];
-P12:list -> P35:head
-;P3:list -> P12:head
-;P36[label="{<head>return|null|<value>value}"];
+P32:operand -> P33:head;
+P12:list -> P32:head;
+P34[label="{<head>jump|null|label:.L0(.L0)}"];
+P12:list -> P34:head;
+P35[label="{<head>label|null|label:.L2(.L2)}"];
+P12:list -> P35:head;
+P3:list -> P12:head;
+P36[label="{<head>return|null|<value>value}"];
 P37[label="{<head>int_const|<type>int|value:0}"];
-P36:value -> P37:head
-;P3:list -> P36:head
-;P0:body -> P3:head
-;}
+P36:value -> P37:head;
+P3:list -> P36:head;
+P0:body -> P3:head;
+}

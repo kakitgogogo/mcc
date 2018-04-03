@@ -1,5 +1,7 @@
 #include <memory>
 #include <assert.h>
+#include <fstream>
+#include <string>
 #include "token.h"
 #include "encode.h"
 #include "ast.h"
@@ -66,6 +68,7 @@ std::shared_ptr<LocalVarNode> make_localvar_node(TokenPtr first_token, Type* typ
         std::shared_ptr<LocalVarNode>(new LocalVarNode(first_token, type, name));
     if(scope->islocal()) {
         scope->add(name, node); 
+        scope->add_local_var(node);
     }
     return node;
 }
@@ -127,7 +130,7 @@ std::shared_ptr<FuncCallNode> make_funcptr_call_node(TokenPtr first_token, std::
         NK_FUNCPTR_CALL, nullptr, ftype, func_ptr, args));
 }
 
-std::shared_ptr<StructMemberNode> make_struct_member_node(TokenPtr first_token, Type* field_type, StructType* struc, 
+std::shared_ptr<StructMemberNode> make_struct_member_node(TokenPtr first_token, Type* field_type, NodePtr struc, 
     char* field_name) {
     return std::shared_ptr<StructMemberNode>(new StructMemberNode(first_token, field_type, struc, field_name));
 }
@@ -170,20 +173,24 @@ std::shared_ptr<ReturnNode> make_return_node(TokenPtr first_token, NodePtr retur
 }
 
 std::shared_ptr<FuncDefNode> make_func_def_node(TokenPtr first_token, Type* func_type, char* func_name, std::vector<NodePtr> params, NodePtr body, Scope* scope) {
-    return std::shared_ptr<FuncDefNode>(new FuncDefNode(first_token, func_type, func_name, params, body, scope->get_local_env()));        
+    return std::shared_ptr<FuncDefNode>(new FuncDefNode(first_token, func_type, func_name, params, body, scope->get_local_vars()));        
 }
  
 
-int Node::eval_int() {
+long long Node::eval_int() {
     error("eval_int error: expression must be intergral constant expression");
     return 0;
 }
 
-int IntNode::eval_int() {
+long long IntNode::eval_int() {
     return value;
 }
 
-int UnaryOperNode::eval_int() {
+long long FloatNode::eval_int() {
+    return int(value);
+} 
+
+long long UnaryOperNode::eval_int() {
     switch(kind) {
     case '!': return !operand->eval_int();
     case '~': return ~operand->eval_int();
@@ -194,7 +201,7 @@ int UnaryOperNode::eval_int() {
     return 0;
 }
 
-int BinaryOperNode::eval_int() {
+long long BinaryOperNode::eval_int() {
     switch(kind) {
     #define L (left->eval_int())
     #define R (right->eval_int())
@@ -215,16 +222,69 @@ int BinaryOperNode::eval_int() {
     case NK_SAL: return L << R;
     case NK_SAR: return L >> R;
     case NK_SHR: return ((unsigned long)L) >> R;
+    #undef L
+    #undef R
     }
     error("expression must be intergral constant expression");
     return 0;
 }
 
-int TernaryOperNode::eval_int() {
+long long TernaryOperNode::eval_int() {
     int cond_val = cond->eval_int();
     if(cond_val) 
         return then ? then->eval_int() : cond_val;
     return els->eval_int();
+}
+
+double Node::eval_float() {
+    error("eval_float error: expression must be float constant expression");
+    return 0;
+}
+
+double IntNode::eval_float() {
+    return double(value);
+}
+
+double FloatNode::eval_float() {
+    return value;
+} 
+
+double UnaryOperNode::eval_float() {
+    switch(kind) {
+    case '!': return !operand->eval_float();
+    case NK_CAST: return operand->eval_float();
+    case NK_CONV: return operand->eval_float();
+    }
+    error("expression must be intergral constant expression");
+    return 0;
+}
+
+double BinaryOperNode::eval_float() {
+    switch(kind) {
+    #define L (left->eval_float())
+    #define R (right->eval_float())
+    case '+': return L + R;
+    case '-': return L - R;
+    case '*': return L * R;
+    case '/': return L / R;
+    case '<': return L < R;
+    case P_LE: return L <= R;
+    case P_EQ: return L == R;
+    case P_NE: return L != R;
+    case P_LOGAND: return L && R;
+    case P_LOGOR:  return L || R;
+    #undef L
+    #undef R
+    }
+    error("expression must be intergral constant expression");
+    return 0;
+}
+
+double TernaryOperNode::eval_float() {
+    int cond_val = cond->eval_int();
+    if(cond_val) 
+        return then ? then->eval_float() : cond_val;
+    return els->eval_float();
 }
 
 // dot graphviz
@@ -239,7 +299,7 @@ static char* ty2s(Type* type) {
     return "null";
 }
 
-static char* op2s(int op) {
+char* op2s(int op) {
     switch(op) {
     case '<': return "lt";
     case '>': return "gt";
@@ -267,232 +327,230 @@ static char* op2s(int op) {
     case NK_SAL: return "sal";
     case NK_SAR: return "sar";
     case NK_SHR: return "shr";
-    default: return format("%c", op);
+    default: 
+        if(op < 256)
+            return format("%c", op);
+        else 
+            return format("%d", op);
     }
 }
 
-char* Node::to_dot_graph(std::ofstream& fout) {
+char* Node::to_dot_graph(FILE* fout) {
     assert(kind == NK_ERROR);
     char* id = make_point_id();
-    fout << id << "[label=\"{<head>error|<type>null}\"];\n";
+    fprintf(fout, "%s[label=\"{<head>error|<type>null}\"];\n", id);
     return id;
 }
 
-char* IntNode::to_dot_graph(std::ofstream& fout) {
+char* IntNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>int_const|<type>%s|value:%lld}\"];\n", ty2s(type), value);    
+    fprintf(fout, "%s[label=\"{<head>int_const|<type>%s|value:%lld}\"];\n", id, ty2s(type), value);    
     return id;
 }
 
-char* FloatNode::to_dot_graph(std::ofstream& fout) {
+char* FloatNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>float_const|<type>%s|value:%lf}\"];\n", ty2s(type), value);    
+    fprintf(fout, "%s[label=\"{<head>float_const|<type>%s|value:%lf}\"];\n", id, ty2s(type), value);    
     return id;
 }
 
-char* StringNode::to_dot_graph(std::ofstream& fout) {
+char* StringNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>string_const|<type>%s|value:%s}\"];\n", ty2s(type), value);    
+    fprintf(fout, "%s[label=\"{<head>string_const|<type>%s|value:%s}\"];\n", id, ty2s(type), value);    
     return id;
 }
 
-char* LocalVarNode::to_dot_graph(std::ofstream& fout) {
+char* LocalVarNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>local_var|<type>%s|<name>%s|<list>init_list}\"];\n", ty2s(type), var_name);
+    fprintf(fout, "%s[label=\"{<head>local_var|<type>%s|<name>%s|<list>init_list}\"];\n", id, ty2s(type), var_name);
     for(auto init:init_list) {
         char* child_id = init->to_dot_graph(fout);
-        fout << format("%s:list -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:list -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* GlobalVarNode::to_dot_graph(std::ofstream& fout) {
+char* GlobalVarNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>global_var|<type>%s|name:%s}\"];\n", ty2s(type), var_name);    
+    fprintf(fout, "%s[label=\"{<head>global_var|<type>%s|name:%s}\"];\n", id, ty2s(type), var_name);    
     return id;
 }
 
-char* FuncDesignatorNode::to_dot_graph(std::ofstream& fout) {
+char* FuncDesignatorNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>func_desg|<type>%s|name:%s}\"];\n", ty2s(type), func_name);    
+    fprintf(fout, "%s[label=\"{<head>func_desg|<type>%s|name:%s}\"];\n", id, ty2s(type), func_name);    
     return id;
 }
 
-char* TypedefNode::to_dot_graph(std::ofstream& fout) {
+char* TypedefNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>typedef|<type>%s|name:%s}\"];\n", ty2s(type), name);    
+    fprintf(fout, "%s[label=\"{<head>typedef|<type>%s|name:%s}\"];\n", id, ty2s(type), name);    
     return id;
 }
 
-char* UnaryOperNode::to_dot_graph(std::ofstream& fout) {
+char* UnaryOperNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>%s|<type>%s|<operand>operand}\"];\n", op2s(kind), ty2s(type));    
+    fprintf(fout, "%s[label=\"{<head>%s|<type>%s|<operand>operand}\"];\n", id, op2s(kind), ty2s(type));    
     if(operand) {
         char* child_id = operand->to_dot_graph(fout);
-        fout << format("%s:operand -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:operand -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* BinaryOperNode::to_dot_graph(std::ofstream& fout) {
+char* BinaryOperNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>%s|<type>%s|<left_operand>left|<right_operand>right}\"];\n", op2s(kind), ty2s(type));    
+    fprintf(fout, "%s[label=\"{<head>%s|<type>%s|<left_operand>left|<right_operand>right}\"];\n", id, op2s(kind), ty2s(type));    
     if(left) {
         char* child_id = left->to_dot_graph(fout);
-        fout << format("%s:left_operand -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:left_operand -> %s:head;\n", id, child_id);
     }
     if(right) {
         char* child_id = right->to_dot_graph(fout);
-        fout << format("%s:right_operand -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:right_operand -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* TernaryOperNode::to_dot_graph(std::ofstream& fout) {
+char* TernaryOperNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>ternery|<type>%s|<cond>cond|<then>then|<els>els}\"];\n", ty2s(type));    
+    fprintf(fout, "%s[label=\"{<head>ternery|<type>%s|<cond>cond|<then>then|<els>els}\"];\n", id, ty2s(type));    
     if(cond) {
         char* child_id = cond->to_dot_graph(fout);
-        fout << format("%s:cond -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:cond -> %s:head;\n", id, child_id);
     }
     if(then) {
         char* child_id = then->to_dot_graph(fout);
-        fout << format("%s:then -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:then -> %s:head;\n", id, child_id);
     }
     if(els) {
         char* child_id = els->to_dot_graph(fout);
-        fout << format("%s:els -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:els -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* FuncCallNode::to_dot_graph(std::ofstream& fout) {
+char* FuncCallNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>func_call|<type>%s|name:%s|<args>args}\"];\n", ty2s(type), func_name);    
+    fprintf(fout, "%s[label=\"{<head>func_call|<type>%s|name:%s|<args>args}\"];\n", id, ty2s(type), func_name);    
     for(auto arg:args) {
         char* child_id = arg->to_dot_graph(fout);
-        fout << format("%s:args -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:args -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* StructMemberNode::to_dot_graph(std::ofstream& fout) {
+char* StructMemberNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>struct_member|<type>%s|field:%s|struct_type:%s}\"];\n", ty2s(type), field_name, ty2s(struc));    
+    fprintf(fout, "%s[label=\"{<head>struct_member|<type>%s|field:%s|<struct>struct}\"];\n", id, ty2s(type), field_name); 
+    if(struc) {
+        char* child_id = struc->to_dot_graph(fout);
+        fprintf(fout, "%s:struct -> %s:head;\n", id, child_id);
+    }   
     return id;
 }
 
-char* LabelAddrNode::to_dot_graph(std::ofstream& fout) {
+char* LabelAddrNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>label_addr|<type>%s|label:%s}\"];\n", ty2s(type), label);    
+    fprintf(fout, "%s[label=\"{<head>label_addr|<type>%s|label:%s}\"];\n", id, ty2s(type), label);    
     return id;
 }
 
-char* InitNode::to_dot_graph(std::ofstream& fout) {
+char* InitNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>init|<type>%s|offset:%d|<value>value}\"];\n", ty2s(type), offset);    
+    fprintf(fout, "%s[label=\"{<head>init|<type>%s|offset:%d|<value>value}\"];\n", id, ty2s(type), offset);    
     if(value) {
         char* child_id = value->to_dot_graph(fout);
-        fout << format("%s:value -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:value -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* DeclNode::to_dot_graph(std::ofstream& fout) {
+char* DeclNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>decl|<type>%s|<var>var|<init_list>init_list}\"];\n", ty2s(type));    
+    fprintf(fout, "%s[label=\"{<head>decl|<type>%s|<var>var|<init_list>init_list}\"];\n", id, ty2s(type));    
     if(var) {
         char* child_id = var->to_dot_graph(fout);
-        fout << format("%s:var -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:var -> %s:head;\n", id, child_id);
     }
     for(auto init:init_list) {
         char* child_id = init->to_dot_graph(fout);
-        fout << format("%s:init_list -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:init_list -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* CompoundStmtNode::to_dot_graph(std::ofstream& fout) {
+char* CompoundStmtNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>compound_stmt|null|<list>list}\"];\n");    
+    fprintf(fout, "%s[label=\"{<head>compound_stmt|null|<list>list}\"];\n", id);    
     for(auto item:list) {
         char* child_id = item->to_dot_graph(fout);
-        fout << format("%s:list -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:list -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* IfNode::to_dot_graph(std::ofstream& fout) {
+char* IfNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>if|null|<cond>cond|<then>then|<els>els}\"];\n");    
+    fprintf(fout, "%s[label=\"{<head>if|null|<cond>cond|<then>then|<els>els}\"];\n", id);    
     if(cond) {
         char* child_id = cond->to_dot_graph(fout);
-        fout << format("%s:cond -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:cond -> %s:head;\n", id, child_id);
     }
     if(then) {
         char* child_id = then->to_dot_graph(fout);
-        fout << format("%s:then -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:then -> %s:head;\n", id, child_id);
     }
     if(els) {
         char* child_id = els->to_dot_graph(fout);
-        fout << format("%s:els -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:els -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* LabelNode::to_dot_graph(std::ofstream& fout) {
+char* LabelNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>label|null|label:%s(%s)}\"];\n", origin_label, normal_label);
+    fprintf(fout, "%s[label=\"{<head>label|null|label:%s(%s)}\"];\n", id, origin_label, normal_label);
     return id;    
 }
 
-char* JumpNode::to_dot_graph(std::ofstream& fout) {
+char* JumpNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>jump|null|label:%s(%s)}\"];\n", origin_label, normal_label);
+    fprintf(fout, "%s[label=\"{<head>jump|null|label:%s(%s)}\"];\n", id, origin_label, normal_label);
     return id;  
 }
 
-char* ReturnNode::to_dot_graph(std::ofstream& fout) {
+char* ReturnNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>return|null|<value>value}\"];\n");    
+    fprintf(fout, "%s[label=\"{<head>return|null|<value>value}\"];\n", id);    
     if(return_val) {
         char* child_id = return_val->to_dot_graph(fout);
-        fout << format("%s:value -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:value -> %s:head;\n", id, child_id);
     }
     return id;
 }
 
-char* FuncDefNode::to_dot_graph(std::ofstream& fout) {
+char* FuncDefNode::to_dot_graph(FILE* fout) {
     char* id = make_point_id();
-    fout << id << 
-        format("[label=\"{<head>func_def:%s|<type>%s|<params>params|<body>body}\"];\n", func_name, ty2s(type));
+    fprintf(fout, "%s[label=\"{<head>func_def:%s|<type>%s|<params>params|<body>body}\"];\n", id, func_name, ty2s(type));
     for(auto param:params) {
         char* child_id = param->to_dot_graph(fout);
-        fout << format("%s:params -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:params -> %s:head;\n", id, child_id);
     }
     if(body) {
         char* child_id = body->to_dot_graph(fout);
-        fout << format("%s:body -> %s:head;\n", id, child_id);
+        fprintf(fout, "%s:body -> %s:head;\n", id, child_id);
     }
 }
 
+void dump_ast(char* filename, std::vector<NodePtr>& ast) {
+    char* fout_name = format("%s.dot", filename);
+    FILE* fout = fopen(fout_name, "w");
+	fprintf(fout, "digraph G {\n");
+	fprintf(fout, "node [fontname = \"Verdana\", fontsize = 10, color=\"skyblue\", shape=\"record\"];\n");
+	fprintf(fout, "edge [fontname = \"Verdana\", fontsize = 10, color=\"crimson\", style=\"solid\"];\n");
+	for(auto node:ast) {
+		node->to_dot_graph(fout);
+	}
+	fprintf(fout, "}\n");
+}

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <assert.h>
+#include "ast.h"
 #include "lexer.h"
 #include "preprocessor.h"
 #include "parser.h"
@@ -33,12 +34,5 @@ next:
 
     vector<NodePtr> ast = parser.get_ast();
 	
-	ofstream fout(string(argv[1])+".dot");
-	fout << "digraph G {" << endl;
-	fout << "node [fontname = \"Verdana\", fontsize = 10, color=\"skyblue\", shape=\"record\"];" << endl;
-	fout << "edge [fontname = \"Verdana\", fontsize = 10, color=\"crimson\", style=\"solid\"];" << endl;
-	for(auto node:ast) {
-		node->to_dot_graph(fout);
-	}
-	fout << "}" << endl;
+    dump_ast(argv[1], ast);
 }

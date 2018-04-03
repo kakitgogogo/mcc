@@ -48,9 +48,6 @@ public:
     }
 
     Type* copy_aux(Type* type) {
-        type->kind = kind;
-        type->size = size;
-        type->align = align;
         type->offset = offset;
         type->bitoff = bitoff;
         type->bitsize = bitsize;

@@ -2,12 +2,15 @@
 
 #include <string.h>
 #include <fstream>
+#include <unistd.h>
 #include "token.h"
 #include "type.h"
 #include "scope.h"
+#include "generator.h"
 
 class Node;
 class Scope;
+class Generator;
 
 using NodePtr = std::shared_ptr<Node>;
 using TokenPtr = std::shared_ptr<Token>;
@@ -58,17 +61,19 @@ enum NodeKind {
     NK_SHR,
 };
 
-class Node {
+class Node: public std::enable_shared_from_this<Node> {
 public:
     Node(int kind, Type* ty, TokenPtr first_token): 
         kind(kind), type(ty), first_token(first_token) {}
 
     virtual ~Node() {}
 
-    virtual int eval_int();
-    virtual double eval_float() { return 0; }
+    virtual long long eval_int();
+    virtual double eval_float();
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     int kind;
     Type* type;
@@ -80,9 +85,12 @@ public:
     IntNode(TokenPtr first_token, Type* ty, long long value): 
         Node(NK_LITERAL, ty, first_token), value(value) {}
 
-    virtual int eval_int();
+    virtual long long eval_int();
+    virtual double eval_float();
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     long long value;
 };
@@ -92,7 +100,12 @@ public:
     FloatNode(TokenPtr first_token, Type* ty, double value): 
         Node(NK_LITERAL, ty, first_token), value(value) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual long long eval_int();
+    virtual double eval_float();
+
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     double value;
     char* label;
@@ -101,9 +114,11 @@ public:
 class StringNode: public Node {
 public:
     StringNode(TokenPtr first_token, Type* ty, char* value): 
-        Node(NK_LITERAL, ty, first_token), value(value) {}
+        Node(NK_LITERAL, ty, first_token), value(value), label(nullptr) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* value;
     char* label;
@@ -115,7 +130,9 @@ public:
     LocalVarNode(TokenPtr first_token, Type* ty, char* name): 
         Node(NK_LOCAL_VAR, ty, first_token), var_name(name) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* var_name;
     int offset;
@@ -128,7 +145,9 @@ public:
         Node(NK_GLOBAL_VAR, ty, first_token), var_name(name), 
         global_label(name) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* var_name;
     char* global_label;
@@ -139,7 +158,9 @@ public:
     FuncDesignatorNode(TokenPtr first_token, Type* ty, char* name): 
         Node(NK_FUNC_DESG, ty, first_token), func_name(name) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* func_name;
 };
@@ -149,7 +170,9 @@ public:
     TypedefNode(TokenPtr first_token, Type* ty, char* name): 
         Node(NK_TYPEDEF, ty, first_token), name(name) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* name;
 };
@@ -159,9 +182,12 @@ public:
     UnaryOperNode(TokenPtr first_token, int kind, Type* ty, NodePtr operand): 
         Node(kind, ty, first_token), operand(operand) {}  
 
-    virtual int eval_int();
+    virtual long long eval_int();
+    virtual double eval_float();
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     NodePtr operand;
 };
@@ -171,9 +197,12 @@ public:
     BinaryOperNode(TokenPtr first_token, int kind, Type* ty, NodePtr left, NodePtr right): 
         Node(kind, ty, first_token), left(left), right(right) {}  
 
-    virtual int eval_int();
+    virtual long long eval_int();
+    virtual double eval_float();
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     NodePtr left, right;
 };
@@ -184,9 +213,12 @@ public:
         Node(NK_TERNARY, ty, first_token), 
         cond(cond), then(then), els(els) {}
 
-    virtual int eval_int();
+    virtual long long eval_int();
+    virtual double eval_float();
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     NodePtr cond, then, els;
 };
@@ -200,7 +232,9 @@ public:
         Node(kind, func_type->return_type, first_token), func_name(func_name),
         func_type(func_type), func_ptr(func_ptr), args(args) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* func_name;
     FuncType* func_type;
@@ -210,12 +244,14 @@ public:
 
 class StructMemberNode: public Node {
 public:
-    StructMemberNode(TokenPtr first_token, Type* field_type, StructType* struc, char* field_name): 
+    StructMemberNode(TokenPtr first_token, Type* field_type, NodePtr struc, char* field_name): 
         Node(NK_STRUCT_MEMBER, field_type, first_token), struc(struc), field_name(field_name) {}  
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
-    StructType* struc;
+    NodePtr struc;
     char* field_name;
 };
 
@@ -225,7 +261,9 @@ public:
         Node(NK_LABEL_ADDR, make_ptr_type(type_void), first_token), 
         label(label) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* label;
 };
@@ -236,7 +274,9 @@ public:
         Node(NK_INIT, type, first_token), value(value), 
         offset(offset) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     NodePtr value;
     int offset;
@@ -247,7 +287,9 @@ public:
     DeclNode(TokenPtr first_token, Type* type, NodePtr var): 
         Node(NK_DECL, type, first_token), var(var) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     NodePtr var;
     std::vector<NodePtr> init_list;
@@ -259,7 +301,9 @@ public:
     CompoundStmtNode(TokenPtr first_token, std::vector<NodePtr> list): 
         Node(NK_COMPOUND_STMT, nullptr, first_token), list(list) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     std::vector<NodePtr> list;
 };
@@ -270,7 +314,9 @@ public:
         Node(NK_IF, nullptr, first_token), 
         cond(cond), then(then), els(els) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     NodePtr cond, then, els;
 };
@@ -281,7 +327,9 @@ public:
         Node(NK_LABEL, nullptr, first_token), 
         origin_label(origin_label), normal_label(normal_label) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* origin_label;
     char* normal_label;
@@ -293,7 +341,9 @@ public:
         Node(NK_JUMP, nullptr, first_token), 
         origin_label(origin_label), normal_label(normal_label) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* origin_label;
     char* normal_label;
@@ -305,7 +355,9 @@ public:
         Node(NK_RETURN, nullptr, first_token), 
         return_val(return_val) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     NodePtr return_val;
 };
@@ -313,16 +365,18 @@ public:
 class FuncDefNode: public Node {
 public:
     FuncDefNode(TokenPtr first_token, Type* func_type, char* func_name, std::vector<NodePtr> params, 
-        NodePtr body, std::map<char*, NodePtr, cstr_cmp> local_env): 
+        NodePtr body, std::vector<NodePtr> local_vars): 
         Node(NK_FUNC_DEF, func_type, first_token), func_name(func_name),
-        params(params), body(body), local_env(local_env) {}
+        params(params), body(body), local_vars(local_vars) {}
 
-    virtual char* to_dot_graph(std::ofstream& fout);
+    virtual void codegen(Generator& gen);
+
+    virtual char* to_dot_graph(FILE* fout);
 public:
     char* func_name;
     std::vector<NodePtr> params;
     NodePtr body;
-    std::map<char*, NodePtr, cstr_cmp> local_env;
+    std::vector<NodePtr> local_vars;
 };
 
 extern NodePtr error_node;
@@ -340,7 +394,7 @@ std::shared_ptr<BinaryOperNode> make_binary_oper_node(TokenPtr first_token, int 
 std::shared_ptr<TernaryOperNode> make_ternary_oper_node(TokenPtr first_token, Type* type, NodePtr cond, NodePtr then, NodePtr els);
 std::shared_ptr<FuncCallNode> make_func_call_node(TokenPtr first_token, NodePtr func_desg, std::vector<NodePtr> args);
 std::shared_ptr<FuncCallNode> make_funcptr_call_node(TokenPtr first_token, NodePtr func_ptr, Type* func_type, std::vector<NodePtr> args);
-std::shared_ptr<StructMemberNode> make_struct_member_node(TokenPtr first_token, Type* field_type, StructType* struc, char* field_name);
+std::shared_ptr<StructMemberNode> make_struct_member_node(TokenPtr first_token, Type* field_type, NodePtr struc, char* field_name);
 std::shared_ptr<LabelAddrNode> make_label_addr_node(TokenPtr first_token, char* label);
 std::shared_ptr<InitNode> make_init_node(TokenPtr first_token, Type* type, NodePtr value, int offset);
 std::shared_ptr<DeclNode> make_decl_node(TokenPtr first_token, Type* type, NodePtr var);
@@ -351,3 +405,6 @@ std::shared_ptr<JumpNode> make_jump_node(TokenPtr first_token, char* origin_labe
 std::shared_ptr<ReturnNode> make_return_node(TokenPtr first_token, NodePtr return_val);
 std::shared_ptr<FuncDefNode> make_func_def_node(TokenPtr first_token, Type* func_type, char* func_name, std::vector<NodePtr> params, NodePtr body, Scope* scope);
 
+char* op2s(int op);
+
+void dump_ast(char* filename, std::vector<NodePtr>& ast);

@@ -30,6 +30,12 @@ enum DeclaratorKind {
 
 #endif
 
+Parser::Parser(Preprocessor* p): pp(p), scope(new Scope()) {
+
+}
+
+// --------------------------- some auxiliar function ------------------------------
+
 static inline NodePtr make_deref_node(TokenPtr tok, NodePtr p) {
     return make_unary_oper_node(tok, NK_DEREF, 
         dynamic_cast<PtrType*>(p->type)->ptr_type, p);
@@ -110,7 +116,7 @@ static int compute_padding(int offset, int align) {
     return (offset % align == 0) ? 0 : align - offset % align;
 }
 
-static void finish_bitfield(int &offset, int &bitoff) {
+static void finish_bitfield(int& offset, int& bitoff) {
     offset += (bitoff + 7) / 8;
     bitoff = 0;
 }
@@ -123,8 +129,6 @@ static vector<pair<char*, Type*>> update_struct_offset(int& size,
         char* name = field.first;
         Type* type = field.second;
 
-        printf("%s %s %d %d\n", name, type->to_string(), type->size, type->align);
-
         if(name) align = max(align, type->align);
 
         if(!name && (type->kind == TK_STRUCT || type->kind == TK_UNION)) {
@@ -135,7 +139,6 @@ static vector<pair<char*, Type*>> update_struct_offset(int& size,
             offset += type->size;
             continue;
         }
-        else if(!name) continue;
 
         // C11 6.7.2.1p12: As a special case, a bit-field structure member with a
         // width of 0 indicates that no further bit-field is to be packed into the
@@ -145,6 +148,8 @@ static vector<pair<char*, Type*>> update_struct_offset(int& size,
             offset += compute_padding(offset, align);
             continue;
         }
+
+        if(!name) continue;
 
         if(type->bitsize > 0) {
             int bits = type->size * 8;
@@ -203,10 +208,11 @@ static vector<pair<char*, Type*>> update_union_offset(int& size,
 
 // ----------------------------------------------------------------------------------
 
-void fill_in_null_type(Type* type, Type* fill_type) {
+void fill_in_null_type(Type*& type, Type* fill_type) {
+    Type* p = type;
     while(true) {
-        if(type->kind == TK_ARRAY) {
-            ArrayType* arrtype = dynamic_cast<ArrayType*>(type);
+        if(p->kind == TK_ARRAY) {
+            ArrayType* arrtype = dynamic_cast<ArrayType*>(p);
             if(arrtype->elem_type->kind == TK_NULL) {
                 if(fill_type->kind == TK_FUNC) {
                     error("declaration of type name as array of functions");
@@ -215,29 +221,22 @@ void fill_in_null_type(Type* type, Type* fill_type) {
                 arrtype->elem_type = fill_type;
                 return;
             }
-            type = arrtype->elem_type;
+            p = arrtype->elem_type;
         }
-        else if(type->kind == TK_PTR) {
-            PtrType* ptrtype = dynamic_cast<PtrType*>(type);
+        else if(p->kind == TK_PTR) {
+            PtrType* ptrtype = dynamic_cast<PtrType*>(p);
             if(ptrtype->ptr_type->kind == TK_NULL) {
                 ptrtype->ptr_type = fill_type;
                 return;
             }
-            type = ptrtype->ptr_type;
+            p = ptrtype->ptr_type;
         }
-        else if(type->kind == TK_FUNC) {
-            FuncType* functype = dynamic_cast<FuncType*>(type);
-            assert(functype->return_type->kind == TK_NULL);
-            if(fill_type->kind == TK_ARRAY) {
-                error("type name declared as function returning an array");
-                return;
-            }
-            if(fill_type->kind == TK_FUNC) {
-                error("type name declared as function returning a function");
-                return;
-            }
-            functype->return_type = fill_type;
+        else if(p->kind == TK_NULL) {
+            type = fill_type;
             return;
+        }
+        else {
+            error("internal error: fill_in_null_type();");
         }
     }
 }
@@ -579,10 +578,9 @@ NodePtr Parser::read_post_expr(bool maybe_return_type) {
             parser_error("expected ‘{'");
             return error_node;
         }
-        char* tmp_label = make_label();
         vector<NodePtr> init_list; 
         read_initializer_list(init_list, type);
-        shared_ptr<LocalVarNode> tmp_var = make_localvar_node(tok, type, tmp_label, scope);
+        shared_ptr<LocalVarNode> tmp_var = make_localvar_node(tok, type, nullptr, scope);
         tmp_var->init_list = init_list;
         return read_post_expr_tail(tmp_var);
     }
@@ -718,7 +716,7 @@ NodePtr Parser::read_struct_member(NodePtr node) {
         errort(name, "‘%s’ has no member named ‘%s’", type->to_string(), name_str);
         return error_node;
     }
-    return make_struct_member_node(name, field, struc, name_str);
+    return make_struct_member_node(name, field, node, name_str);
 } 
 
 /*
@@ -962,25 +960,25 @@ NodePtr Parser::read_relational_expr() {
     return read_relational_expr_tail(node);
 }
 NodePtr Parser::read_relational_expr_tail(NodePtr node) {
-    bool int_result = false;
+    bool is_relational_expr = false;
     TokenPtr tok = pp->peek_token();
     if(pp->next('<')) {
-        int_result = true;
+        is_relational_expr = true;
         node = make_binop(tok, '<', convert(node), convert(read_shift_expr()));
     }
     if(pp->next('>')) {
-        int_result = true;
+        is_relational_expr = true;
         node = make_binop(tok, '<', convert(read_shift_expr()), convert(node));
     }
     if(pp->next(P_LE)) {
-        int_result = true;
+        is_relational_expr = true;
         node = make_binop(tok, P_LE, convert(node), convert(read_shift_expr()));
     }
     if(pp->next(P_GE)) {
-        int_result = true;
+        is_relational_expr = true;
         node = make_binop(tok, P_LE, convert(read_shift_expr()), convert(node));
     }
-    if(int_result) {
+    if(is_relational_expr) {
         // C11 6.5.8p6: relational operators shall yield 1 if the specified 
         // relation is true and 0 if it is false. The result has type int.
         node->type = type_int;
@@ -1287,7 +1285,7 @@ void Parser::read_decl(vector<NodePtr>& list, bool isglobal) {
         }
         if(pp->next(';')) return;
         if(!pp->next(',')) {
-            errort(tok, "';' or ',' are expected");
+            parser_error("';' or ',' are expected");
             return;
         }
     }
@@ -1301,7 +1299,7 @@ void Parser::read_static_assert(TokenPtr first_token) {
         parser_error("expected ‘(’");
         return;
     }
-    int val = read_const_expr()->eval_int();
+    long long val = read_const_expr()->eval_int();
     if(!pp->next(',')) {
         parser_error("expected ‘,’");
         return;
@@ -1488,7 +1486,7 @@ update_type:
         goto complete_type;
     }
     if(!type) {
-        warnt(first_tok, "type defaults to ‘int’");
+        // warnt(first_tok, "type defaults to ‘int’");
         type = type_int;
     }
     if(size == SIZE_SHORT) {
@@ -1660,7 +1658,7 @@ void Parser::read_struct_decl_list(std::vector<std::pair<char*, Type*>>& fields)
                         fieldtype->to_string());
                     return;
                 }
-                if(val == 0 || name != nullptr) {
+                if(val == 0 && name != nullptr) {
                     errort(tok, "zero-width bitfield needs to be unnamed");
                     return;
                 }
@@ -1842,6 +1840,7 @@ Type* Parser::read_declarator(char** name, Type* basetype, vector<NodePtr>* para
         }
         Type* real_type = read_declarator_tail(basetype, params);
         fill_in_null_type(r, real_type);
+        basetype->copy_aux(r); // copy type-qualifier
         return r;
     }
     auto skip_type_qualifier = [&](){ 
@@ -1850,7 +1849,9 @@ Type* Parser::read_declarator(char** name, Type* basetype, vector<NodePtr>* para
     };
     if(pp->next('*')) {
         skip_type_qualifier(); // Temporarily ignore type qualifier
-        return read_declarator(name, make_ptr_type(basetype), params, declarator_kind);
+        Type* r = read_declarator(name, make_ptr_type(basetype), params, declarator_kind);
+        basetype->copy_aux(r); // copy type-qualifier
+        return r;
     }
     TokenPtr tok = pp->get_token();
     if(tok->kind == TIDENT) {
@@ -1866,7 +1867,9 @@ Type* Parser::read_declarator(char** name, Type* basetype, vector<NodePtr>* para
         return nullptr;
     }
     pp->unget_token(tok);
-    return read_declarator_tail(basetype, params);
+    Type* r = read_declarator_tail(basetype, params);
+    basetype->copy_aux(r); // copy type-qualifier
+    return r;
 }
 
 Type* Parser::read_declarator_tail(Type* basetype, vector<NodePtr>* params) {
@@ -2038,6 +2041,21 @@ designator : '[' const_expr ']' | '.' 'ident'
 void Parser::read_initializer(Type* type, vector<NodePtr>& init_list) {
     if(type->is_string_type() || pp->peek_token()->kind == '{') {
         read_initializer_list(init_list, type, 0);
+
+        auto cmp = [&](const pair<int, int>& x, const pair<int, int>& y) {
+            return (x.first == y.first ? (x.second < y.second) : x.first < y.first);
+        };
+        map<pair<int, int>, shared_ptr<InitNode>, 
+            bool(*)(const pair<int, int>&, const pair<int, int>&)> init_map(cmp);
+        for(int i = 0; i < init_list.size(); ++i) {
+            assert(init_list[i]->kind == NK_INIT);
+            shared_ptr<InitNode> init = dynamic_pointer_cast<InitNode>(init_list[i]);
+            init_map[make_pair(init->offset, init->type->bitoff)] = init;
+        }
+        init_list.clear();
+        for(auto init:init_map) {
+            init_list.push_back(init.second);
+        }
     }
     else {
         NodePtr init =convert(read_assign_expr());
@@ -2247,7 +2265,10 @@ void Parser::read_array_initializer_list(vector<NodePtr>& init_list, Type* type,
         }
         else {
             pp->unget_token(tok);
-            if(i == array_type->length) continue;
+            if(i == array_type->length) {
+                errort(tok, "excess elements in array initializer");
+                return;
+            }
             field_type = array_type->elem_type;
             offset_offset = field_type->size * i;
             i++;
@@ -2833,6 +2854,7 @@ void Parser::read_oldstyle_param_type(FuncType* func_type, vector<NodePtr>& para
 
 NodePtr Parser::read_func_body(TokenPtr tok, FuncType* func_type, char* fname, vector<NodePtr> params) {
     scope->in(func_type);
+    scope->clear_local_var();
 
     NodePtr func_name =  make_string_node(tok, fname, ENC_NONE);
     scope->add("__func__", func_name);

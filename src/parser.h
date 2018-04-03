@@ -10,17 +10,21 @@
 #include "ast.h"
 #include "scope.h"
 
+class Node;
+class Scope;
+class CaseTuple;
+
 using NodePtr = std::shared_ptr<Node>;
 using TokenPtr = std::shared_ptr<Token>;
 
 class Parser {
 public:
-    Parser(Preprocessor* p): pp(p), scope(new Scope()) {}
+    Parser(Preprocessor* p);
 
     std::vector<NodePtr>& get_ast();
 
 public:
-    // aux function
+    // auxiliar function
     Type* get_typedef(char* name);
     bool is_type_name(TokenPtr tok);
     bool is_assignable(Type* type1, Type* type2);

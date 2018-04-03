@@ -1,0 +1,9 @@
+digraph G {
+node [fontname = "Verdana", fontsize = 10, color="skyblue", shape="record"];
+edge [fontname = "Verdana", fontsize = 10, color="crimson", style="solid"];
+P0[label="{<head>func_def:func|<type>char*(,...)|<params>params|<body>body}"];
+P1[label="{<head>compound_stmt|null|<list>list}"];
+P2[label="{<head>int_const|<type>unsigned long|value:8}"];
+P1:list -> P2:head;
+P0:body -> P1:head;
+}

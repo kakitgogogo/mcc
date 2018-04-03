@@ -51,6 +51,10 @@
         "climits": "cpp",
         "cinttypes": "cpp",
         "bitset": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "*.ipp": "cpp",
+        "complex": "cpp",
+        "future": "cpp",
+        "valarray": "cpp"
     }
 }

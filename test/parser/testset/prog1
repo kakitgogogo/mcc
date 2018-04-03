@@ -6,6 +6,8 @@ void printf() {}
 
 int main(int argc, char* argv[])
 {
+	typedef int (func)(int);
+	func* f;
 	int a;
 	printf("%d", a);
 }

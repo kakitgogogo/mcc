@@ -1,3 +1,6 @@
+int fa();
+int fb();
+
 void expr() {
     int a = 1.1;
     double b = 1;
@@ -10,4 +13,8 @@ void expr() {
     sizeof(a);
     sizeof("abc");
     sizeof("哈哈");
+
+    a ? 2 : 1;
+
+    (a > 1 ? fa : fb)();
 }

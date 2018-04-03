@@ -1,0 +1,12 @@
+int a;
+
+extern int a;
+
+int xx(int (*[])(int a,int));
+
+int xxx(int ((*)[])[*]);
+
+int main() {
+    xx();
+    sizeof(xx);
+}

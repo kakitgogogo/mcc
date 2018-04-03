@@ -28,9 +28,10 @@ public:
     char* get_default_label();
     std::vector<CaseTuple>& get_cases();
     FuncType* get_current_func_type();
-    std::map<char*, std::shared_ptr<Node>, cstr_cmp> get_local_env();
+    std::vector<std::shared_ptr<Node>> get_local_vars();
 
     void add(char* name, std::shared_ptr<Node> val);
+    void add_local_var(std::shared_ptr<Node> var);
     void add_global(char* name, std::shared_ptr<Node> val);
     void add_switch_case(CaseTuple c);
     void set_switch_default(char* label);
@@ -49,6 +50,7 @@ public:
 
     void clear_local();
     void recover_local();
+    void clear_local_var();
 
     Scope* copy();
 
@@ -56,6 +58,8 @@ private:
     std::map<char*, std::shared_ptr<Node>, cstr_cmp> global_env;
     std::vector<std::map<char*, std::shared_ptr<Node>, cstr_cmp>> local_envs;
     std::vector<std::map<char*, std::shared_ptr<Node>, cstr_cmp>> local_envs_backup;
+
+    std::vector<std::shared_ptr<Node>> local_vars;
 
     FuncType* current_func_type;
 

@@ -46,16 +46,21 @@ FuncType* Scope::get_current_func_type() {
     return current_func_type;
 }
 
-std::map<char*, std::shared_ptr<Node>, cstr_cmp> Scope::get_local_env() {
-    return local_envs.back();
+std::vector<std::shared_ptr<Node>> Scope::get_local_vars() {
+    return local_vars;
 }
 
 
 void Scope::add(char* name, std::shared_ptr<Node> val) {
-    if(local_envs.size() > 0)
+    if(local_envs.size() > 0) {
         local_envs.back()[name] = val;
+    }
     else 
         global_env[name] = val;
+}
+
+void Scope::add_local_var(std::shared_ptr<Node> var) {
+    local_vars.push_back(var);
 }
 
 void Scope::add_global(char* name, std::shared_ptr<Node> val) {
@@ -82,6 +87,9 @@ void Scope::in(FuncType* func) {
 void Scope::out() {
     if(local_envs.size() > 0)
         local_envs.pop_back();
+    if(local_envs.size() == 0) {
+        local_vars.clear();
+    }
 }
 
 void Scope::in_loop(char* lcontinue, char* lbreak) {
@@ -122,4 +130,8 @@ void Scope::clear_local() {
 void Scope::recover_local() {
     assert(local_envs.size() == 0);
     swap(local_envs, local_envs_backup);
+}
+
+void Scope::clear_local_var() {
+    local_vars.clear();
 }

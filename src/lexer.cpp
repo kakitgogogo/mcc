@@ -42,17 +42,20 @@ bool Lexer::skip_space_aux() {
             while(c != '\n' && c != EOF) 
                 c = fileset.get_chr();
             if(c == '\n') fileset.unget_chr(c);
+            return true;
         }
         else if(fileset.next('*')) { // block comment
             Pos pos = get_pos(-2); // has read "/*"
             while(true) {
-                if(c == EOF) 
+                c = fileset.get_chr();
+                if(c == EOF) {
                     fileset.unget_chr(c);
                     errorp(pos, "unexpected end of block comment");
                     return false;
+                }
                 if(c == '*')
                     if(fileset.next('/'))
-                        break;
+                        return true;
             }
         }
     }
