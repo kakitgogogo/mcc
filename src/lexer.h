@@ -15,6 +15,7 @@ public:
     void push_file(FILE* file, char* name) { fileset.push_file(file, name); }
 
     FileSet& get_fileset() { return fileset; }
+    char* get_base_file() { return base_file; }
 
     std::shared_ptr<Token> get_token();
     void unget_token(std::shared_ptr<Token> token);
@@ -52,4 +53,6 @@ private:
 private:
     FileSet fileset;
     std::vector<std::shared_ptr<Token>> buffer;
+
+    char* base_file = nullptr;
 };

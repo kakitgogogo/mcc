@@ -20,4 +20,3 @@ void warnvp(const Pos& pos, char* fmt, va_list args);
 
 void errort(std::shared_ptr<Token> tok, char* fmt, ...);
 void warnt(std::shared_ptr<Token>  tok, char* fmt, ...);
-

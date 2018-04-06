@@ -13,6 +13,8 @@ Lexer::Lexer(char* filename) {
         error("Fail to open %s: %s", filename, strerror(errno));
     }
     fileset.push_file(fp, filename);
+
+    base_file = filename;
 }
 
 Lexer::Lexer(std::vector<std::shared_ptr<Token> >& toks) {
@@ -107,7 +109,7 @@ int Lexer::read_octal_char(int c) {
     int i = 1;
     while(i++ < 3) {
         c = fileset.get_chr();
-        if(c <= '0' && c >= '7') {
+        if(c < '0' || c > '7') {
             fileset.unget_chr(c);
             return o;
         }
@@ -238,7 +240,7 @@ std::shared_ptr<Token> Lexer::read_char(int enc) {
     int c = fileset.get_chr();
     if(c == EOF || c == '\n') {
         fileset.unget_chr(c);
-        errorp(pos, "missing terminating ' character");
+        errorp(pos, "missing character and '\''");
         return make_token(TINVALID, pos);
     }
     int chr = (c == '\\') ? read_escape_char() : c;

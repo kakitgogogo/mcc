@@ -1030,7 +1030,7 @@ void TernaryOperNode::codegen(Generator& gen) {
 // %rdi, %rsi, %rdx, %rcx, %r8 and %r9.
 // Floating point arguments are placed in the registers %xmm0-%xmm7
 static char* REGS[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; 
-static char* XMMS[8] = {"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
+// static char* XMMS[8] = {"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
 /*
 The calling convention used by X86-64 on Linux is somewhat different and is known as the System V ABI. 
@@ -1287,7 +1287,8 @@ void FuncDefNode::codegen(Generator& gen) {
         gen.stack_size += localarea;
     }
 
-    body->codegen(gen);
+    if(body != nullptr)
+        body->codegen(gen);
 
     gen.emit("leave");
     gen.emit("ret");

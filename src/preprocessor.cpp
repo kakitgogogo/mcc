@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include <libgen.h>
-#include "cmd_option.h"
 #include "buffer.h"
 #include "preprocessor.h"
 #include "parser.h"
@@ -99,14 +98,14 @@ static TokenPtr stringize(TokenPtr templ, vector<TokenPtr>& args) {
     return str;
 }
 
-static void set_union(set<char*>& tok_hideset, set<char*>& hideset) {
+static void set_union(set<char*, cstr_cmp>& tok_hideset, set<char*, cstr_cmp>& hideset) {
     for(auto item:hideset) {
         tok_hideset.insert(item);
     }
 }
 
-static void set_intersection(set<char*>& tok_hideset, set<char*>& hideset) {
-    set<char*> res;
+static void set_intersection(set<char*, cstr_cmp>& tok_hideset, set<char*, cstr_cmp>& hideset) {
+    set<char*, cstr_cmp> res;
     for(auto item:tok_hideset) {
         if(hideset.find(item) != hideset.end()) {
             res.insert(item);
@@ -115,7 +114,7 @@ static void set_intersection(set<char*>& tok_hideset, set<char*>& hideset) {
     swap(hideset, res);
 }
 
-static void hideset_add(vector<TokenPtr>& toks, set<char*>& hideset) {
+static void hideset_add(vector<TokenPtr>& toks, set<char*, cstr_cmp>& hideset) {
     for(int i = 0; i < toks.size(); ++i) {
         toks[i] = toks[i]->copy();
         set_union(toks[i]->hideset, hideset);
@@ -123,7 +122,7 @@ static void hideset_add(vector<TokenPtr>& toks, set<char*>& hideset) {
 }
 
 void Preprocessor::subst(MacroPtr macro, std::vector<std::vector<TokenPtr>>& args, 
-    std::set<char*>& hideset, std::vector<TokenPtr>& res) {
+    std::set<char*, cstr_cmp>& hideset, std::vector<TokenPtr>& res) {
     for(int i = 0; i < macro->body.size(); ++i) {
         TokenPtr left = macro->body[i];
         TokenPtr right = (i == (macro->body.size() - 1)) ? nullptr : macro->body[i+1];
@@ -196,7 +195,7 @@ TokenPtr Preprocessor::expand_aux() {
     if(tok->kind != TIDENT) return tok;
     char* name = tok->to_string();
     auto iter = macros.find(name);
-    if(iter == macros.end() && tok->hideset.find(name) == tok->hideset.end()) {
+    if(iter == macros.end() || tok->hideset.find(name) != tok->hideset.end()) {
         return tok;
     }
     MacroPtr macro = iter->second;
@@ -209,13 +208,14 @@ TokenPtr Preprocessor::expand_aux() {
 
     switch(macro->kind) {
     case MK_OBJECT: {
-        set<char*> hideset = tok->hideset;
+        set<char*, cstr_cmp> hideset = tok->hideset;
         hideset.insert(name);
         auto args = vector<vector<TokenPtr>>{};
         vector<TokenPtr> toks;
         subst(macro, args, hideset, toks);
         if(toks.size() > 0) {
             toks[0]->leading_space = tok->leading_space;
+            toks[0]->begin_of_line = tok->begin_of_line;
         }
         unget_all(toks);
         return expand();
@@ -231,19 +231,21 @@ TokenPtr Preprocessor::expand_aux() {
         if(!rparen->is_keyword(')')) {
             errort(rparen, "expected ')'");
         }
-        set<char*> hideset = tok->hideset;
+        set<char*, cstr_cmp> hideset = tok->hideset;
         set_intersection(hideset, rparen->hideset);
         hideset.insert(name);
         vector<TokenPtr> toks;
         subst(macro, args, hideset, toks);
         if(toks.size() > 0) {
             toks[0]->leading_space = tok->leading_space;
+            toks[0]->begin_of_line = tok->begin_of_line;
         }
         unget_all(toks);
         return expand();
     }
     case MK_PREDEFINE: {
-        dynamic_pointer_cast<PredefinedMacro>(macro)->handler(tok);
+        TokenPtr subst_tok = dynamic_pointer_cast<PredefinedMacro>(macro)->handler(tok);
+        if(subst_tok != nullptr) return subst_tok;
         return expand();
     }
     default:
@@ -274,6 +276,7 @@ void Preprocessor::expand_all(TokenPtr templ, std::vector<TokenPtr>& toks,
     if(res.size() > size) {
         res[size] = res[size]->copy();
         res[size]->leading_space = templ->leading_space;
+        res[size]->begin_of_line = templ->begin_of_line;
     }
     set_lexer(old_lexer);
 }
@@ -287,17 +290,18 @@ void Preprocessor::read_directive(TokenPtr hash) {
     if(tok->kind != TIDENT) goto invalid_diretive;
 
     if(!strcmp(name, "if")) read_if();
-    if(!strcmp(name, "ifdef")) read_ifdef();
-    if(!strcmp(name, "ifndef")) read_idndef();
-    if(!strcmp(name, "elif")) read_elif(hash);
-    if(!strcmp(name, "else")) read_else(hash);
-    if(!strcmp(name, "endif")) read_endif(hash);
-    if(!strcmp(name, "include")) read_include(hash);
-    if(!strcmp(name, "define")) read_define();
-    if(!strcmp(name, "undef")) read_undef();
-    if(!strcmp(name, "line")) read_line();
-    if(!strcmp(name, "error")) read_error(hash);
-    if(!strcmp(name, "pragma")) read_pragma();
+    else if(!strcmp(name, "ifdef")) read_ifdef();
+    else if(!strcmp(name, "ifndef")) read_idndef();
+    else if(!strcmp(name, "elif")) read_elif(hash);
+    else if(!strcmp(name, "else")) read_else(hash);
+    else if(!strcmp(name, "endif")) read_endif(hash);
+    else if(!strcmp(name, "include")) read_include(hash);
+    else if(!strcmp(name, "define")) read_define();
+    else if(!strcmp(name, "undef")) read_undef();
+    else if(!strcmp(name, "line")) read_line();
+    else if(!strcmp(name, "error")) read_error(hash);
+    else if(!strcmp(name, "pragma")) read_pragma();
+    else goto invalid_diretive;
 
     return;
 invalid_diretive:
@@ -456,7 +460,7 @@ void Preprocessor::read_endif(TokenPtr hash) {
 // C11 6.10.2: source file include
 static char* get_abs_path(char* path) {
     static char abs_path[256];
-    if(realpath(path, abs_path)) {
+    if(realpath(path, abs_path) != nullptr) {
         return strdup(abs_path);
     }
     return nullptr;
@@ -472,7 +476,7 @@ bool Preprocessor::try_include(char* dir, char* filename) {
     if(!fp) {
         error("Fail to open %s: %s", filename, strerror(errno));
     }
-    lexer->push_file(fp, filename);
+    lexer->push_file(fp, path);
     return true;
 }
 
@@ -520,15 +524,16 @@ void Preprocessor::read_include(TokenPtr hash) {
         }
         goto include_failed;
     }
-    if(include_path) {
-        if(try_include(include_path, filename)) {
-            return;
-        }
-    }
+    // if(include_path) {
+    //     if(try_include(include_path, filename)) {
+    //         return;
+    //     }
+    // }
     if(!is_std) {
         char* dir;
         if(hash->filename)
-            dir = dirname(hash->filename);
+            // X will change the parameter, so the parameter must be copied first
+            dir = dirname(strdup(hash->filename));
         else   
             dir = ".";
         if(try_include(dir, filename)) {
@@ -715,7 +720,7 @@ void Preprocessor::read_pragma_aux(vector<TokenPtr> toks) {
         }
     }
     else if(!strcmp(oper, "message")) {
-        fprintf(stderr, isatty(fileno(stderr)) ? "\e[1;34m[NOTE]\e[0m " : "[NOTE] ");
+        fprintf(stderr, isatty(fileno(stderr)) ? "\n\e[1;34m[NOTE]\e[0m " : "[NOTE] ");
         fprintf(stderr, "%s:%d:%d: ", toks[0]->filename, toks[0]->row, toks[0]->col);
         fprintf(stderr, "#pragma");
         for(auto tok:toks) {
@@ -737,6 +742,7 @@ void Preprocessor::read_pragma() {
     }
     while(tok->kind != TNEWLINE) {
         toks.push_back(tok);
+        tok = lexer->get_token();
     }
     read_pragma_aux(toks);
 }
@@ -746,54 +752,58 @@ void Preprocessor::read_pragma() {
 
 // C11 6.10.8: predefine macro names
 void Preprocessor::init_predefined_macro() {
-    auto make_predefined_macro = [](std::function<void(TokenPtr)> handler) {
+    auto make_predefined_macro = [](std::function<TokenPtr(TokenPtr)> handler) {
         return shared_ptr<PredefinedMacro>(new PredefinedMacro(handler));
     };
     auto subst_string = [&](char* str, TokenPtr tok) {
         TokenPtr subst_tok = make_string(str, ENC_NONE, tok->get_pos());
         tok->copy_aux(subst_tok);
-        lexer->unget_token(subst_tok);
+        return subst_tok;
     };
     auto subst_number = [&](int val, TokenPtr tok) {
         TokenPtr subst_tok = make_number(format("%d", val), tok->get_pos());
         tok->copy_aux(subst_tok);
-        lexer->unget_token(subst_tok);
+        return subst_tok;
     };
-    struct tm now;
-    time_t timet = time(NULL);
-    localtime_r(&timet, &now);
 
     macros["__DATE__"] = make_predefined_macro([&](TokenPtr tok) {
         char buf[20];
+        struct tm now;
+        time_t timet = time(NULL);
+        localtime_r(&timet, &now);
         strftime(buf, sizeof(buf), "%b %e %Y", &now);
-        subst_string(strdup(buf), tok);
+        return subst_string(strdup(buf), tok);
     });
     macros["__TIME__"] = make_predefined_macro([&](TokenPtr tok) {
         char buf[10];
+        struct tm now;
+        time_t timet = time(NULL);
+        localtime_r(&timet, &now);
         strftime(buf, sizeof(buf), "%T", &now);
-        subst_string(strdup(buf), tok);
+        return subst_string(strdup(buf), tok);
     });
     macros["__TIMESTAMP__"] = make_predefined_macro([&](TokenPtr tok) {
         char buf[30];
-        strftime(buf, sizeof(buf), "%a %b %e %T %Y", &now);
-        subst_string(strdup(buf), tok);
+        time_t timet = time(NULL);
+        strftime(buf, sizeof(buf), "%a %b %e %T %Y", localtime(&timet));
+        return subst_string(strdup(buf), tok);
     });
     macros["__FILE__"] = make_predefined_macro([&](TokenPtr tok) {
-        subst_string(tok->filename, tok);
+        return subst_string(tok->filename, tok);
     });
     macros["__LINE__"] = make_predefined_macro([&](TokenPtr tok) {
-        subst_number(tok->row, tok);
+        return subst_number(tok->row, tok);
     });
     macros["__BASE_FILE__"] = make_predefined_macro([&](TokenPtr tok) {
-        subst_string(base_file, tok);
+        return subst_string(lexer->get_base_file(), tok);
     });
     macros["__COUNTER__"] = make_predefined_macro([&](TokenPtr tok) {
         static int counter = 0;
-        subst_number(counter++, tok);
+        return subst_number(counter++, tok);
     });
     macros["__INCLUDE_LEVEL__"] = make_predefined_macro([&](TokenPtr tok) {
         int level = lexer->get_fileset().count() - 1;
-        subst_number(level, tok);
+        return subst_number(level, tok);
     });
 
     // pragma operator
@@ -817,6 +827,7 @@ void Preprocessor::init_predefined_macro() {
         if(!t->is_keyword(')')) {
             errort(t, "expected ')'");
         }
+        return nullptr;
     });
 }
 
@@ -831,17 +842,15 @@ void Preprocessor::init_keywords(std::map<char*, int, cstr_cmp>& keywords) {
 }
 
 void Preprocessor::init_std_include_path() {
-#ifdef BUILD_DIR
-    std_include_path.push_back(BUILD_DIR "/include");
-#endif
+    std_include_path.push_back("/usr/local/mcc/include");
     std_include_path.push_back("/usr/local/include");
     std_include_path.push_back("/usr/include");
     std_include_path.push_back("/usr/include/linux");
     std_include_path.push_back("/usr/include/x86_64-linux-gnu");
 
-    FILE* fp = fopen("../include/mcc.h", "r");
+    FILE* fp = fopen("/usr/local/mcc/include/mcc.h", "r");
     if(!fp) {
-        error("no such file or directory: mcc.h");
+        error("no such file or directory: /usr/local/mcc/include/mcc.h");
     }
     lexer->push_file(fp, "mcc.h");
 }
@@ -872,6 +881,12 @@ TokenPtr Preprocessor::get_token() {
         if(tok->begin_of_line && tok->is_keyword('#')) {
             read_directive(tok);
             continue;
+        }
+        if(tok->kind == TINVALID) {
+            while(tok->kind != TEOF) {
+                tok = expand();
+            }
+            exit(1);
         }
         assert(tok->kind < TPP);
         break;

@@ -1,4 +1,4 @@
-CC		= g++
+CXX		= g++
 CXXFLAG	= -g -std=c++11 -Wno-write-strings -DDEBUG_MODE
 INCL	= -I ../../src
 TESTS	= test gen
@@ -12,7 +12,7 @@ clean:
 	rm -f $(TESTS)
 
 test: test.cpp $(SOURCE)
-	$(CC) $(CXXFLAG) $(INCL) -o $@ $^
+	$(CXX) $(CXXFLAG) $(INCL) -o $@ $^
 
 gen: gen.cpp $(SOURCE)
-	$(CC) $(CXXFLAG) $(INCL) -o $@ $^
+	$(CXX) $(CXXFLAG) $(INCL) -o $@ $^

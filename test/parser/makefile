@@ -1,4 +1,4 @@
-CC		= g++
+CXX		= g++
 CXXFLAG	= -g -std=c++11 -Wno-write-strings -DDEBUG_MODE
 INCL	= -I ../../src
 TESTS	= draw
@@ -12,4 +12,4 @@ clean:
 	rm -f $(TESTS)
 
 draw: draw.cpp $(SOURCE)
-	$(CC) $(CXXFLAG) $(INCL) -o $@ $^
+	$(CXX) $(CXXFLAG) $(INCL) -o $@ $^

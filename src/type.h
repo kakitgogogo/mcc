@@ -48,7 +48,7 @@ public:
         return type;
     }
 
-    Type* copy_aux(Type* type) {
+    void copy_aux(Type* type) {
         type->offset = offset;
         type->bitoff = bitoff;
         type->bitsize = bitsize;

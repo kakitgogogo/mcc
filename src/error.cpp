@@ -8,7 +8,7 @@ bool has_error = false;
 bool enable_warning = true;
 
 static void error_format(char* file, int line, char* fmt, va_list args) {
-    fprintf(stderr, "%s:%d: ", file, line);
+    fprintf(stderr, "\n%s:%d: ", file, line);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
 }
@@ -23,7 +23,7 @@ void errorf(char* file, int line, char* fmt, ...) {
 }
 
 static void errorp_format(char* label, const Pos& pos, char* fmt, va_list args) {
-    fprintf(stderr, isatty(fileno(stderr)) ? "\e[1;31m[%s]\e[0m " : "[%s] ", label);
+    fprintf(stderr, isatty(fileno(stderr)) ? "\n\e[1;31m[%s]\e[0m " : "[%s] ", label);
     fprintf(stderr, "%s:%d:%d: ", pos.filename, pos.row, pos.col);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");

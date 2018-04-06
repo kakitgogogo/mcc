@@ -23,10 +23,8 @@ enum DeclaratorKind {
 #ifdef DEBUG_MODE
 
 #define errort_old errort
-#define warnt_old warnt
 
 #define errort(...) { errort_old(__VA_ARGS__); error("stop mcc"); }
-#define warnt(...) { warnt_old(__VA_ARGS__); error("stop mcc"); }
 
 #endif
 

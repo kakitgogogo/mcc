@@ -565,6 +565,7 @@ char* FuncDefNode::to_dot_graph(FILE* fout) {
         char* child_id = body->to_dot_graph(fout);
         fprintf(fout, "%s:body -> %s:head;\n", id, child_id);
     }
+    return id;
 }
 
 void dump_ast(char* filename, std::vector<NodePtr>& ast) {

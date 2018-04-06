@@ -55,6 +55,8 @@
         "*.ipp": "cpp",
         "complex": "cpp",
         "future": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "stddef.h": "c",
+        "a.h": "c"
     }
 }

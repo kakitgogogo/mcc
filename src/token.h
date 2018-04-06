@@ -53,7 +53,7 @@ public:
 
     // hideset is used to prevent abuse of macro expansion.
     // only useful in preprocessor
-    std::set<char*> hideset;
+    std::set<char*, cstr_cmp> hideset;
 };
 
 enum TokenKind {

@@ -54,15 +54,15 @@ class FunctionMacro: public Macro {
 public:
     FunctionMacro(std::vector<TokenPtr> toks, int nargs, bool has_var_param): Macro(MK_FUNCTION, toks), nargs(nargs), has_var_param(has_var_param) {}
 public:
-    int nargs;
+    unsigned int nargs;
     bool has_var_param;
 };
 
 class PredefinedMacro: public Macro {
 public:
-    PredefinedMacro(std::function<void(TokenPtr)> handler): Macro(MK_PREDEFINE), handler(handler) {}
+    PredefinedMacro(std::function<TokenPtr(TokenPtr)> handler): Macro(MK_PREDEFINE), handler(handler) {}
 public:
-    std::function<void(TokenPtr)> handler;
+    std::function<TokenPtr(TokenPtr)> handler;
 };
 
 enum CondInclKind {
@@ -88,6 +88,8 @@ public:
     TokenPtr peek_token();
     bool next(int kind);
 
+    void add_include_path(char* path) { std_include_path.push_back(path); }
+
     void open_undo_mode() { allow_undo = true; }
     void undo();
 
@@ -98,7 +100,7 @@ private:
 
     void glue_tokens(std::vector<TokenPtr>& lefts, TokenPtr right);
     
-    void subst(MacroPtr macro, std::vector<std::vector<TokenPtr>>& args, std::set<char*>& hideset, std::vector<TokenPtr>& res);
+    void subst(MacroPtr macro, std::vector<std::vector<TokenPtr>>& args, std::set<char*, cstr_cmp>& hideset, std::vector<TokenPtr>& res);
     TokenPtr expand_aux();
     TokenPtr expand();
     

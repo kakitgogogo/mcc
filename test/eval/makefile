@@ -1,4 +1,4 @@
-CC		= g++
+CXX		= g++
 CXXFLAG	= -g -std=c++11 -Wno-write-strings
 INCL	= -I ../../src
 TESTS	= test
@@ -12,5 +12,5 @@ clean:
 	rm -f $(TESTS)
 
 test: test.cpp $(SOURCE)
-	$(CC) $(CXXFLAG) $(INCL) -o $@ $^
+	$(CXX) $(CXXFLAG) $(INCL) -o $@ $^
 
