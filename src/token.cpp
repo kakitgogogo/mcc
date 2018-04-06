@@ -51,7 +51,7 @@ std::shared_ptr<Token> make_string(char* s, int enc, const Pos& pos) {
 }
 
 bool Token::is_keyword(int k) {
-    return (kind < TIDENT) && (kind == k);
+    return kind == k;
 }
 
 bool Token::is_ident(char* s) {

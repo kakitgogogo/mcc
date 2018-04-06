@@ -14,9 +14,9 @@ void FileSet::push_file(FILE* file, char* name) {
 
 void FileSet::push_string(char* s) {
     File f;
-    f.file = NULL;
+    f.file = nullptr;
     f.stream = s;
-    f.name = "-";
+    f.name = nullptr;
     f.row = 1;
     f.col = 1;
     files.push_back(f);

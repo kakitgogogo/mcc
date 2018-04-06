@@ -29,6 +29,20 @@ public:
 
     Pos get_pos() { return Pos{ filename, row, col }; }
 
+    void copy_aux(std::shared_ptr<Token> tok) {
+        tok->filename = filename;
+        tok->row = row;
+        tok->col = col;
+        tok->leading_space = leading_space;
+        tok->begin_of_line = begin_of_line;
+        tok->hideset = hideset;
+    }
+    virtual std::shared_ptr<Token> copy() {
+        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new Token(kind));
+        copy_aux(tok);
+        return tok;
+    }
+
 public:
     int kind;
     char* filename;
@@ -67,19 +81,39 @@ class Keyword: public Token {
 public:
     Keyword(int k): Token(k) {}
     virtual char* to_string();
+
+    virtual std::shared_ptr<Token> copy() {
+        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new Keyword(kind));
+        copy_aux(tok);
+        return tok;
+    }
 };
 
 class Ident: public Token {
 public:
     Ident(char* n): Token(TIDENT), name(n) {}
     virtual char* to_string();
+
+    virtual std::shared_ptr<Token> copy() {
+        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new Ident(name));
+        copy_aux(tok);
+        return tok;
+    }
+
+public:
     char* name;
 };
 
 class Number: public Token {
 public:
-    Number(char* l): Token(TNUMBER), value(l) {}
+    Number(char* val): Token(TNUMBER), value(val) {}
     virtual char* to_string();
+
+    virtual std::shared_ptr<Token> copy() {
+        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new Number(value));
+        copy_aux(tok);
+        return tok;
+    }
 public:
     char* value;
 };
@@ -96,6 +130,12 @@ class Char: public Token {
 public:
     Char(char c, int e): Token(TCHAR), character(c), encode_method(e) {}
     virtual char* to_string();
+
+    virtual std::shared_ptr<Token> copy() {
+        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new Char(character, encode_method));
+        copy_aux(tok);
+        return tok;
+    }
 public:
     int character;
     int encode_method;
@@ -103,8 +143,14 @@ public:
 
 class String: public Token {
 public:
-    String(char* l, int e): Token(TSTRING), value(l), encode_method(e) {}
+    String(char* val, int e): Token(TSTRING), value(val), encode_method(e) {}
     virtual char* to_string();
+
+    virtual std::shared_ptr<Token> copy() {
+        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new String(value, encode_method));
+        copy_aux(tok);
+        return tok;
+    }
 public:
     char* value;
     int encode_method;

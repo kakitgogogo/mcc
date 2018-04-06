@@ -176,37 +176,49 @@ std::shared_ptr<FuncDefNode> make_func_def_node(TokenPtr first_token, Type* func
     return std::shared_ptr<FuncDefNode>(new FuncDefNode(first_token, func_type, func_name, params, body, scope->get_local_vars()));        
 }
  
-
-long long Node::eval_int() {
-    error("eval_int error: expression must be intergral constant expression");
+// evaluate integer constant expression
+long long Node::eval_int(char** global_label) {
+    error("eval_int error: expression must be intergral constant expression, node->kind: %d", kind);
     return 0;
 }
 
-long long IntNode::eval_int() {
+long long IntNode::eval_int(char** global_label) {
     return value;
 }
 
-long long FloatNode::eval_int() {
+long long FloatNode::eval_int(char** global_label) {
     return int(value);
 } 
 
-long long UnaryOperNode::eval_int() {
+long long UnaryOperNode::eval_int(char** global_label) {
     switch(kind) {
-    case '!': return !operand->eval_int();
-    case '~': return ~operand->eval_int();
-    case NK_CAST: return operand->eval_int();
-    case NK_CONV: return operand->eval_int();
+    case '!': return !operand->eval_int(global_label);
+    case '~': return ~operand->eval_int(global_label);
+    case NK_CAST: return operand->eval_int(global_label);
+    case NK_CONV: return operand->eval_int(global_label);
+    case NK_ADDR: {
+        return operand->eval_int(global_label);
+    }
+    case NK_DEREF: {
+        assert(operand->type->kind == TK_PTR);
+        return operand->eval_int(global_label);
+    }
     }
     error("expression must be intergral constant expression");
     return 0;
 }
 
-long long BinaryOperNode::eval_int() {
+long long BinaryOperNode::eval_int(char** global_label) {
+    if(left->type->kind == TK_PTR && right->type->kind == TK_PTR) {
+        errort(first_token, "expected constant expression");
+        return 0;
+    }
+    int size = left->type->kind == TK_PTR ? dynamic_cast<PtrType*>(left->type)->ptr_type->size : 1;
     switch(kind) {
-    #define L (left->eval_int())
-    #define R (right->eval_int())
-    case '+': return L + R;
-    case '-': return L - R;
+    #define L (left->eval_int(global_label))
+    #define R (right->eval_int(global_label))
+    case '+': return L + R * size;
+    case '-': return L - R * size;
     case '*': return L * R;
     case '/': return L / R;
     case '%': return L % R;
@@ -229,13 +241,25 @@ long long BinaryOperNode::eval_int() {
     return 0;
 }
 
-long long TernaryOperNode::eval_int() {
-    int cond_val = cond->eval_int();
+long long TernaryOperNode::eval_int(char** global_label) {
+    int cond_val = cond->eval_int(global_label);
     if(cond_val) 
-        return then ? then->eval_int() : cond_val;
-    return els->eval_int();
+        return then ? then->eval_int(global_label) : cond_val;
+    return els->eval_int(global_label);
 }
 
+// The following eval_int() are only useful when initializing global variables
+long long GlobalVarNode::eval_int(char** lglobal) {
+    *lglobal = global_label;
+    return 0;
+}
+
+long long StructMemberNode::eval_int(char** global_label) {
+    return struc->eval_int(global_label) + type->offset;
+}
+
+
+// evaluate float constant expression
 double Node::eval_float() {
     error("eval_float error: expression must be float constant expression");
     return 0;

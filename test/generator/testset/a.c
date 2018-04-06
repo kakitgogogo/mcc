@@ -18,7 +18,13 @@ struct struc h = { 1, 1 };
 
 int* i = &c;
 
-char* gstr = "xxx";
+char* gstr = (char*)"xxx";
+
+int* j = &h.c + 3;
+
+struct struc k = (struct struc){1, 2};
+
+int* l = &b[1];
 
 void print_int();
 void print_str();
@@ -43,4 +49,7 @@ int main() {
     print_str(gstr);
 
     print_int(fp(2));
+
+    print_int(k.b);
+    print_int(*l);
 }

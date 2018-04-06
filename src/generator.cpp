@@ -602,9 +602,17 @@ void Generator::emit_data_primtype(Type* type, NodePtr val, int subsection) {
         emit(".long ?", int(val->eval_int()));
         return;
     case TK_LONG:
-    case TK_LONG_LONG:
-        emit(".quad ?", val->eval_int());
+    case TK_LONG_LONG: {
+        char* global_label = nullptr;
+        long long v = val->eval_int(&global_label);
+        if(!global_label) {
+            emit(".quad ?", v);
+        }
+        else {
+            emit(".quad ?+?", global_label, v);
+        }
         return;
+    }
     case TK_FLOAT: {
         double v = val->eval_float();
         emit(".long %d", *(uint32_t *)&v);
@@ -630,6 +638,7 @@ void Generator::emit_data_primtype(Type* type, NodePtr val, int subsection) {
             emit(".string \"?\"", quote_string(dynamic_pointer_cast<StringNode>(val)->value));
             emit(".data ?", subsection);
             emit(".quad ?", label);
+            return;
         }
         else if(val->kind == NK_ADDR) {
             NodePtr operand = dynamic_pointer_cast<UnaryOperNode>(val)->operand;            
@@ -642,26 +651,26 @@ void Generator::emit_data_primtype(Type* type, NodePtr val, int subsection) {
                 emit_data_aux(lvar->init_list, lvar->type->size, 0, subsection + 1);
                 emit(".data ?", subsection);
                 emit(".quad ?", label);
-                break;
+                return;
             }
             case NK_GLOBAL_VAR: {
                 emit(".quad ?", dynamic_pointer_cast<GlobalVarNode>(operand)->global_label);
-                break;
+                return;
             }
             case NK_FUNC_DESG: {
                 emit(".quad ?", dynamic_pointer_cast<FuncDesignatorNode>(operand)->func_name);                
-                break;
+                return;
             }
-            default:
-                error("internal error");
             }
         }
-        else if(val->kind == NK_LITERAL) {
-            long long addr = val->eval_int();
-            emit(".quad ?", addr);   
+
+        char* global_label = nullptr;
+        long long v = val->eval_int(&global_label);
+        if(!global_label) {
+            emit(".quad ?", v);
         }
         else {
-            errort(val->first_token, "expected constant expression");
+            emit(".quad ?+?", global_label, v);
         }
         return;
     }
@@ -673,12 +682,14 @@ void Generator::emit_data_primtype(Type* type, NodePtr val, int subsection) {
 
 void Generator::emit_data_aux(std::vector<NodePtr> init_list, int total_size, int offset, int subsection) {
     auto emit_zero = [&](int start, int end) {
-        for(; start <= end - 8; start += 8)
-            emit(".quad 0");
-        for(; start <= end - 4; start += 4)
-            emit(".long 0");
-        for(; start < end; ++start)
-            emit(".byte 0");
+        // for(; start <= end - 8; start += 8)
+        //     emit(".quad 0");
+        // for(; start <= end - 4; start += 4)
+        //     emit(".long 0");
+        // for(; start < end; ++start)
+        //     emit(".byte 0");
+        if(end - start > 0)
+            emit(".zero ?", end - start);
     };
     int last_end = 0;
     for(int i = 0; i < init_list.size(); ++i) {
@@ -699,7 +710,7 @@ void Generator::emit_data_aux(std::vector<NodePtr> init_list, int total_size, in
                     break;
                 }
                 totype = init->type;
-                val |= (((long long)1 << totype->bitsize) & init->value->eval_int()) << totype->bitoff;
+                val |= ((((long long)1 << totype->bitsize) - 1) & init->value->eval_int()) << totype->bitoff;
             }
             emit_data_primtype(totype, make_int_node(nullptr, totype, val), subsection);
             last_end = init->offset + init->type->size;
@@ -737,8 +748,16 @@ void Generator::emit_data_aux(std::vector<NodePtr> init_list, int total_size, in
                 emit(".quad ?", dynamic_pointer_cast<FuncDesignatorNode>(operand)->func_name);                
                 break;
             }
-            default:
-                error("internal error");
+            default: {
+                char* global_label = nullptr;
+                long long v = operand->eval_int(&global_label);
+                if(!global_label) {
+                    emit(".quad ?", v);
+                }
+                else {
+                    emit(".quad ?+?", global_label, v);
+                }
+            }
             }
         }
         else {

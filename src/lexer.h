@@ -8,12 +8,21 @@
 
 class Lexer {
 public:
+    Lexer() {}
     Lexer(char* filename);
     Lexer(std::vector<std::shared_ptr<Token> >& toks);
+
+    void push_file(FILE* file, char* name) { fileset.push_file(file, name); }
+
+    FileSet& get_fileset() { return fileset; }
 
     std::shared_ptr<Token> get_token();
     void unget_token(std::shared_ptr<Token> token);
 
+    std::shared_ptr<Token> get_token_from_string(char* str);
+    void get_tokens_from_string(char* str, std::vector<std::shared_ptr<Token>>& res);
+
+    std::shared_ptr<Token> peek_token();
     bool next(int kind);
 private:
 

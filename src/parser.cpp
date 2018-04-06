@@ -570,11 +570,11 @@ NodePtr Parser::read_post_expr(bool maybe_return_type) {
             parser_error("expected ‘)'");
             return error_node;
         }
-        // if next token isn't '{', expr must be "'(' type_name ')' ..."
-        if(!pp->next('{') && maybe_return_type) {
-            return make_typedef_node(tok, type, "-", nullptr);
-        }
-        if(!pp->next('{')) {
+        if(pp->peek_token()->kind != '{') {
+            // if next token isn't '{', expr must be "'(' type_name ')' ..."
+            if(maybe_return_type) {
+                return make_typedef_node(tok, type, "-", nullptr);
+            }
             parser_error("expected ‘{'");
             return error_node;
         }
@@ -604,6 +604,10 @@ NodePtr Parser::read_post_expr_tail(NodePtr node) {
         NodePtr sub = read_expr();
         if(!pp->next(']')) {
             parser_error("expected ‘]'");
+            return error_node;
+        }
+        if(node->type->kind != TK_ARRAY && node->type->kind != TK_PTR) {
+            errort(node->first_token, "subscripted value is neither array nor pointer nor vector");
             return error_node;
         }
         // C11 6.5.2.1p2: E1[E2] is identical to (*((E1)+(E2)))

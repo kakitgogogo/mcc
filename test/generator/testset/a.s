@@ -39,8 +39,8 @@ g:
 	.data 0
 	.globl h
 h:
-	.long 1
-	.long 0
+	.long 9
+	.zero 4
 	.data 0
 	.globl i
 i:
@@ -53,6 +53,19 @@ gstr:
 	.string "xxx"
 	.data 0
 	.quad .L0
+	.data 0
+	.globl j
+j:
+	.quad h+16
+	.data 0
+	.globl k
+k:
+	.long 17
+	.zero 4
+	.data 0
+	.globl l
+l:
+	.quad b+4
 	.text
 .globl main
 main:
@@ -197,6 +210,26 @@ main:
 	call *%r11
 	add $8, %rsp
 	pop %rdi
+	movq %rax, %rdi
+	mov $0, %eax
+	call print_int
+	pop %rdi
+	push %rdi
+	movslq k+0(%rip), %rax
+	push %rcx
+	shr $3, %rax
+	mov $7, %rcx
+	and %rcx, %rax
+	pop %rcx
+	movslq %eax, %rax
+	movq %rax, %rdi
+	mov $0, %eax
+	call print_int
+	pop %rdi
+	push %rdi
+	movq l+0(%rip), %rax
+	movslq 0(%rax), %rax
+	movslq %eax, %rax
 	movq %rax, %rdi
 	mov $0, %eax
 	call print_int

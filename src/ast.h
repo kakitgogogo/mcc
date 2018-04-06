@@ -68,7 +68,9 @@ public:
 
     virtual ~Node() {}
 
-    virtual long long eval_int();
+    // When global_label is not null, it indicates that the address may be calculated 
+    // (this operation is used for initialization of global variables).
+    virtual long long eval_int(char** global_label = nullptr);
     virtual double eval_float();
 
     virtual void codegen(Generator& gen);
@@ -85,7 +87,7 @@ public:
     IntNode(TokenPtr first_token, Type* ty, long long value): 
         Node(NK_LITERAL, ty, first_token), value(value) {}
 
-    virtual long long eval_int();
+    virtual long long eval_int(char** global_label = nullptr);
     virtual double eval_float();
 
     virtual void codegen(Generator& gen);
@@ -100,7 +102,7 @@ public:
     FloatNode(TokenPtr first_token, Type* ty, double value): 
         Node(NK_LITERAL, ty, first_token), value(value) {}
 
-    virtual long long eval_int();
+    virtual long long eval_int(char** global_label = nullptr);
     virtual double eval_float();
 
     virtual void codegen(Generator& gen);
@@ -145,6 +147,8 @@ public:
         Node(NK_GLOBAL_VAR, ty, first_token), var_name(name), 
         global_label(name) {}
 
+    virtual long long eval_int(char** global_label = nullptr);
+
     virtual void codegen(Generator& gen);
 
     virtual char* to_dot_graph(FILE* fout);
@@ -182,7 +186,7 @@ public:
     UnaryOperNode(TokenPtr first_token, int kind, Type* ty, NodePtr operand): 
         Node(kind, ty, first_token), operand(operand) {}  
 
-    virtual long long eval_int();
+    virtual long long eval_int(char** global_label = nullptr);
     virtual double eval_float();
 
     virtual void codegen(Generator& gen);
@@ -197,7 +201,7 @@ public:
     BinaryOperNode(TokenPtr first_token, int kind, Type* ty, NodePtr left, NodePtr right): 
         Node(kind, ty, first_token), left(left), right(right) {}  
 
-    virtual long long eval_int();
+    virtual long long eval_int(char** global_label = nullptr);
     virtual double eval_float();
 
     virtual void codegen(Generator& gen);
@@ -213,7 +217,7 @@ public:
         Node(NK_TERNARY, ty, first_token), 
         cond(cond), then(then), els(els) {}
 
-    virtual long long eval_int();
+    virtual long long eval_int(char** global_label = nullptr);
     virtual double eval_float();
 
     virtual void codegen(Generator& gen);
@@ -246,6 +250,8 @@ class StructMemberNode: public Node {
 public:
     StructMemberNode(TokenPtr first_token, Type* field_type, NodePtr struc, char* field_name): 
         Node(NK_STRUCT_MEMBER, field_type, first_token), struc(struc), field_name(field_name) {}  
+
+    virtual long long eval_int(char** global_label = nullptr);
 
     virtual void codegen(Generator& gen);
 

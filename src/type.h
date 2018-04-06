@@ -43,6 +43,7 @@ public:
 
     virtual Type* copy() { 
         Type* type = new Type(kind, size, align, is_unsigned); 
+        copy_aux(type);
         type->from_copy = true;
         return type;
     }

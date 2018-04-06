@@ -455,6 +455,36 @@ void Lexer::unget_token(std::shared_ptr<Token> token) {
     buffer.push_back(token);
 }
 
+std::shared_ptr<Token> Lexer::get_token_from_string(char* str) {
+    fileset.push_string(str);
+    std::shared_ptr<Token> tok = get_token();
+    next(TNEWLINE);
+    Pos pos = get_pos(0);
+    if(peek_token()->kind != TEOF) {
+        errorp(pos, "unconsumed input: %s", str);
+        error("internal error: stop mcc");
+    }
+    fileset.pop_file();
+    return tok;
+}
+
+void Lexer::get_tokens_from_string(char* str, std::vector<std::shared_ptr<Token>>& res) {
+    fileset.push_string(str);
+    while(true) {
+        std::shared_ptr<Token> tok = read_token();
+        if(tok->kind == TEOF) {
+            fileset.pop_file();
+            return;
+        }
+    }
+}
+
+std::shared_ptr<Token> Lexer::peek_token() {
+    std::shared_ptr<Token> tok = get_token();
+    unget_token(tok);
+    return tok;
+}
+
 bool Lexer::next(int kind) {
     std::shared_ptr<Token> tok = get_token();
     if(tok->kind == kind)
