@@ -7,6 +7,17 @@
 #include "generator.h"
 using namespace std;
 
+// (6 ∗ 8 + 16 ∗ 16) = 304
+#define REG_SAVE_AREA_SIZE 304
+
+// according to linux x86_64-abi: 
+// User-level applications use as integer registers for passing the sequence
+// %rdi, %rsi, %rdx, %rcx, %r8 and %r9.
+// Floating point arguments are placed in the registers %xmm0-%xmm7
+static char* REGS[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; 
+// static char* XMMS[8] = {"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
+
+
 Generator::Generator(char* filename, Parser* parser): parser(parser), fout(filename) {
     fout.setf(ios::fixed);
 }
@@ -203,7 +214,7 @@ static const char* get_mov_inst(Type *type) {
     case 2: 
         return type->is_unsigned ? "movzwq" : "movswq";
     case 4: 
-        return type->is_unsigned ? "movzlq" : "movslq";
+        return type->is_unsigned ? "movzx" : "movslq";
     case 8: 
         return "movq";
     default:
@@ -788,6 +799,57 @@ void Generator::emit_bss(std::shared_ptr<DeclNode> decl) {
     emit(".lcomm ?, ?", gvar->global_label, gvar->type->size);
 }
 
+void Generator::emit_builtin_va_start(NodePtr node) {
+    assert(node->kind == NK_FUNC_CALL);
+    shared_ptr<FuncCallNode> fcall = dynamic_pointer_cast<FuncCallNode>(node);
+    NodePtr arg = fcall->args[0];
+    FuncType* ftype = dynamic_cast<FuncType*>(fcall->func_type);
+
+    // arg is pointer to va_list;
+    /* va_list:
+        typedef struct {
+            unsigned int gp_offset;
+            unsigned int fp_offset;
+            void *overflow_arg_area;
+            void *reg_save_area;
+        } va_list[1];
+    */
+    arg->codegen(*this);
+    push("rcx");
+    emit("movl $?, (%rax)", ftype->numgp * 8);
+    emit("movl $?, 4(%rax)", 48 + ftype->numfp * 16);
+    emit("lea ?(%rbp), %rcx", -REG_SAVE_AREA_SIZE);
+    emit("mov %rcx, 16(%rax)");
+    pop("rcx");
+}
+
+// 0 is GPR, 1 is SSE, 2 is MEMORY
+void Generator::emit_builtin_reg_class(NodePtr node) {
+    assert(node->kind == NK_FUNC_CALL);
+    NodePtr arg = dynamic_pointer_cast<FuncCallNode>(node)->args[0];
+    assert(arg->type->kind == TK_PTR);
+    Type* type = dynamic_cast<PtrType*>(arg->type)->ptr_type;
+    if(type->kind == TK_STRUCT) {
+        emit("mov $2, %eax");
+    }
+    else if(type->is_float_type()) {
+        emit("mov $1, %eax");
+    }
+    else {
+        emit("mov $0, %eax");
+    }
+}
+
+void Generator::emit_reg_area_save() {
+    emit("sub $?, %rsp", REG_SAVE_AREA_SIZE);
+    for(int i = 0; i < 6; ++i) {
+        emit("mov %?, ?(%rsp)", REGS[i], 8 * i);
+    }
+    for(int i = 0; i < 16; ++i) {
+        emit("movaps %xmm?, ?(%rsp)", i, 48 + 16 * i);
+    }
+}
+
 
 // -------------------------------- codegen --------------------------------
 
@@ -888,7 +950,7 @@ void UnaryOperNode::codegen(Generator& gen) {
         operand->codegen(gen);
         int size = operand->type->kind == TK_PTR ? dynamic_cast<PtrType*>(operand->type)->ptr_type->size
                 : (operand->type->kind == TK_ARRAY ? dynamic_cast<ArrayType*>(operand->type)->elem_type->size : 1);
-        gen.emit("? $?, %rax", kind == NK_POST_INC ? "add": "sub", size);
+        gen.emit("? $?, %rax", kind == NK_PRE_INC ? "add": "sub", size);
         gen.emit_save(operand);
         return;
     }
@@ -900,7 +962,7 @@ void UnaryOperNode::codegen(Generator& gen) {
     case '!': {
         operand->codegen(gen);
         gen.emit("cmp $0, %rax");
-        gen.emit("sete #al");
+        gen.emit("sete %al");
         gen.emit("movzb %al, %eax");
         return;
     }
@@ -986,8 +1048,8 @@ void BinaryOperNode::codegen(Generator& gen) {
             gen.emit("movq %rax, %rcx");
             gen.pop("rax");
             switch(kind) {
-            case '+': gen.emit("add #rcx, #rax"); break;
-            case '-': gen.emit("sub #rcx, #rax"); break;
+            case '+': gen.emit("add %rcx, %rax"); break;
+            case '-': gen.emit("sub %rcx, %rax"); break;
             default: error("invalid pointer operator %s", op2s(kind));
             }
             gen.pop("rcx");
@@ -1025,13 +1087,6 @@ void TernaryOperNode::codegen(Generator& gen) {
     }
 }
 
-// according to linux x86_64-abi: 
-// User-level applications use as integer registers for passing the sequence
-// %rdi, %rsi, %rdx, %rcx, %r8 and %r9.
-// Floating point arguments are placed in the registers %xmm0-%xmm7
-static char* REGS[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; 
-// static char* XMMS[8] = {"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
-
 /*
 The calling convention used by X86-64 on Linux is somewhat different and is known as the System V ABI. 
 
@@ -1043,6 +1098,16 @@ The calling convention used by X86-64 on Linux is somewhat different and is know
 6.The return value of the function is placed in %eax.
 */
 void FuncCallNode::codegen(Generator& gen) {
+    // If it is a built-in function, execute it directly
+    if(func_name != nullptr && !strcmp(func_name, "__builtin_va_start")) {
+        gen.emit_builtin_va_start(shared_from_this());
+        return;
+    }
+    if(func_name != nullptr && !strcmp(func_name, "__builtin_reg_class")) {
+        gen.emit_builtin_reg_class(shared_from_this());
+        return;
+    }
+
     int stack_size_dup = gen.stack_size;
     bool is_ptr_func_call = (func_ptr != nullptr);
 
@@ -1162,7 +1227,7 @@ void LabelAddrNode::codegen(Generator& gen) {
 }
 
 void InitNode::codegen(Generator& gen) {
-    
+    error("internal error: InitNode cannot generate code");
 }
 
 void DeclNode::codegen(Generator& gen) {
@@ -1231,6 +1296,13 @@ void FuncDefNode::codegen(Generator& gen) {
     gen.emit("movq %rsp, %rbp");
     int offset = 0;
 
+    // If the function has variable parameters
+    FuncType* ftype = dynamic_cast<FuncType*>(type);
+    if(ftype->has_var_param) {
+        gen.emit_reg_area_save();
+        offset -= REG_SAVE_AREA_SIZE;
+    }
+
     // push function parameters
     int gprs = 0, xmms = 0, pos = 2; // pos = 2, because old rip and old rbp is stored in stack
     for(auto param:params) {
@@ -1272,6 +1344,8 @@ void FuncDefNode::codegen(Generator& gen) {
         assert(param->kind == NK_LOCAL_VAR);
         dynamic_pointer_cast<LocalVarNode>(param)->offset = offset;
     }
+    ftype->numgp = gprs;
+    ftype->numfp = xmms;
 
     // emit local varient
     int localarea = 0;

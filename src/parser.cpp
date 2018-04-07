@@ -364,7 +364,22 @@ NodePtr Parser::read_prim_expr() {
     case TSTRING:
         return read_string(tok);
     case '(': {
-        NodePtr node = read_expr();
+        TokenPtr t = pp->peek_token();
+        NodePtr node;
+        // '(' '{' compound_stmt '}' ')'
+        // usually used in macro define
+        // return compound_stmt's last expression
+        if(pp->next('{')) {
+            NodePtr stmt = read_compound_stmt(t);
+            if(stmt == nullptr) {
+                errort(t, "compound stmt in here should not be empty");
+                return error_node;
+            }
+            node = dynamic_pointer_cast<CompoundStmtNode>(stmt)->list.back();
+        }
+        else {
+            node = read_expr();
+        }
         if(!pp->next(')'))
             parser_error("expected ‘)’");
         return node;
@@ -1516,7 +1531,7 @@ update_type:
         type = type_llong;
     }
     if(sig != 0) {
-        if(type->kind <= TK_CHAR || type->kind >= TK_LONG_LONG) {
+        if(type->kind < TK_CHAR || type->kind > TK_LONG_LONG) {
             errort(first_tok, "both ‘%s’ and ‘%s’ in declaration specifiers",
                 sig == KW_SIGNED ? "signed" : "unsigned", type->to_string());
             return nullptr;
@@ -1707,7 +1722,7 @@ Type* Parser::read_enum_spec() {
         auto iter = tags.find(tag);
         if(iter != tags.end()) {
             Type* type = iter->second;
-            if(type->kind != KW_ENUM) {
+            if(type->kind != TK_ENUM) {
                 errort(tok, "'%s' defined as wrong kind of tag", tag);
                 return nullptr;
             }
@@ -1862,7 +1877,9 @@ Type* Parser::read_declarator(char** name, Type* basetype, vector<NodePtr>* para
             return nullptr;
         }
         *name = tok->to_string();
-        return read_declarator_tail(basetype, params);
+        Type* r = read_declarator_tail(basetype, params);
+        basetype->copy_aux(r); // copy type-qualifier
+        return r;
     }
     if(tok->kind == DK_CONCRETE) {
         errort(tok, "expected identifier");
@@ -2778,6 +2795,9 @@ NodePtr Parser::read_func_def() {
     vector<NodePtr> params;
     Type* type =read_declarator(&name, basetype, &params, DK_CONCRETE);
     FuncType* func_type = dynamic_cast<FuncType*>(type);
+    if(func_type->has_var_param && func_type->param_types.size() == 0) {
+        func_type->has_var_param = false;
+    }
     if(func_type->is_old_style) {
         read_oldstyle_param_type(func_type, params);
     }

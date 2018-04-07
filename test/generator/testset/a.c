@@ -26,8 +26,8 @@ struct struc k = (struct struc){1, 2};
 
 int* l = &b[1];
 
-void print_int();
-void print_str();
+void print_int(int n);
+void print_str(char* s);
 
 int main() {
     int a = 1;
@@ -52,4 +52,6 @@ int main() {
 
     print_int(k.b);
     print_int(*l);
+
+    
 }

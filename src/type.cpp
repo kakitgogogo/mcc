@@ -102,7 +102,7 @@ char* ArrayType::to_string() {
 }
 
 char* StructType::to_string() {
-    return format("%s %s", (kind == TK_STRUCT ? "struct" : "union"), name);
+    return format("%s %s", (kind == TK_STRUCT ? "struct" : "union"), name ? name : "(anonymous)");
 }
 
 char* FuncType::to_string() {

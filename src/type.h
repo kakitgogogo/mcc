@@ -168,7 +168,7 @@ public:
 
 class StructType: public Type {
 public:
-    StructType(int kind, char* name = ""): Type(kind), name(name) {
+    StructType(int kind, char* name = nullptr): Type(kind), name(name) {
         assert(kind == TK_STRUCT || kind == TK_UNION);
     }
     virtual char* to_string();
@@ -205,6 +205,10 @@ public:
     std::vector<Type*> param_types;
     bool has_var_param;
     bool is_old_style;
+
+    // used in va_start
+    int numgp = 0;
+    int numfp = 0;
 };
 
 extern Type *type_void;
@@ -228,6 +232,6 @@ Type* make_null_type();
 Type* make_number_type(int kind, bool is_unsigned);
 Type* make_ptr_type(Type* type);
 Type* make_array_type(Type* type, int length);
-Type* make_struct_type(int kind, char* name = "");
+Type* make_struct_type(int kind, char* name = nullptr);
 Type* make_func_type(Type* return_type, std::vector<Type*> param_types, bool has_var_arg, bool is_old_style);
 

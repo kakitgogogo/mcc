@@ -72,10 +72,15 @@ public:
     void emit_data(std::shared_ptr<DeclNode> decl);
     void emit_bss(std::shared_ptr<DeclNode> decl);
 
+    void emit_builtin_va_start(NodePtr node);
+    void emit_builtin_reg_class(NodePtr node);
+
+    void emit_reg_area_save();
+
     void run();
 
 public:
-    int stack_size;
+    int stack_size = 0;
 
 private:
     std::ofstream fout;

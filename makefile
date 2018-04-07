@@ -1,5 +1,5 @@
 CXX		= g++
-CXXFLAG	= -g -std=c++11 -Wno-write-strings
+CXXFLAG	= -g -std=c++11 -Wno-write-strings -DDEBUG_MODE
 INCL	= -I ./src
 SOURCE 	= $(wildcard src/*.cpp)
 
@@ -7,6 +7,7 @@ SOURCE 	= $(wildcard src/*.cpp)
 
 mcc: main.cpp $(SOURCE)
 	export POSIXLY_CORRECT=y
+	sudo cp include/*.h /usr/local/mcc/include
 	$(CXX) $(CXXFLAG) $(INCL) -o $@ $^
 
 all_test:

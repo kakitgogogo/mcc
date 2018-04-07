@@ -105,14 +105,12 @@ main:
 	push %rdi
 	movslq -24(%rbp), %rax
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_int
 	pop %rdi
 	push %rdi
 	movswq -32(%rbp), %rax
 	movswq %ax, %rax
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_int
 	pop %rdi
 	push %rdi
@@ -139,7 +137,6 @@ main:
 	movq -16(%rbp), %rax
 	.L4:
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_int
 	pop %rdi
 	movq $8, %rax
@@ -178,7 +175,6 @@ main:
 	pop %rcx
 	movslq %eax, %rax
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_int
 	pop %rdi
 .data
@@ -191,13 +187,11 @@ main:
 	push %rdi
 	movq -48(%rbp), %rax
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_str
 	pop %rdi
 	push %rdi
 	movq gstr+0(%rip), %rax
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_str
 	pop %rdi
 	push %rdi
@@ -211,7 +205,6 @@ main:
 	add $8, %rsp
 	pop %rdi
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_int
 	pop %rdi
 	push %rdi
@@ -223,7 +216,6 @@ main:
 	pop %rcx
 	movslq %eax, %rax
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_int
 	pop %rdi
 	push %rdi
@@ -231,7 +223,6 @@ main:
 	movslq 0(%rax), %rax
 	movslq %eax, %rax
 	movq %rax, %rdi
-	mov $0, %eax
 	call print_int
 	pop %rdi
 	leave
