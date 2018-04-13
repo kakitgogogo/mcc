@@ -152,7 +152,9 @@ private:
     // init function
     void init_keywords(std::map<char*, int, cstr_cmp>& keywords);
     void init_std_include_path();
+    
     TokenPtr maybe_convert_to_keyword(TokenPtr tok);
+    TokenPtr get_token_aux();
 
 private:
     Lexer* lexer;

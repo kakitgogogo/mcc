@@ -874,7 +874,7 @@ TokenPtr Preprocessor::maybe_convert_to_keyword(TokenPtr tok) {
     return tok;
 }
 
-TokenPtr Preprocessor::get_token() {
+TokenPtr Preprocessor::get_token_aux() {
     TokenPtr tok;
     while(true) {
         tok = expand();
@@ -892,6 +892,25 @@ TokenPtr Preprocessor::get_token() {
         break;
     }
     tok = maybe_convert_to_keyword(tok);
+    return tok;
+}
+
+TokenPtr Preprocessor::get_token() {
+    TokenPtr tok = get_token_aux();
+    if(tok->kind == TSTRING) {
+        while(true) {
+            TokenPtr tok2 = get_token_aux();
+            if(tok2->kind != TSTRING) {
+                unget_token(tok2);
+                break;
+            }
+
+            Buffer buffer;
+            buffer.write("%s%s", dynamic_pointer_cast<String>(tok)->value,
+                dynamic_pointer_cast<String>(tok2)->value);
+            dynamic_pointer_cast<String>(tok)->value = buffer.data();
+        }
+    }
     if(allow_undo) {
         record.push_back(tok);
     }

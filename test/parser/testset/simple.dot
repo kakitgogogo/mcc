@@ -1,0 +1,19 @@
+digraph G {
+node [fontname = "Verdana", fontsize = 10, color="skyblue", shape="record"];
+edge [fontname = "Verdana", fontsize = 10, color="crimson", style="solid"];
+P0[label="{<head>func_def:main|<type>int()|<params>params|<body>body}"];
+P1[label="{<head>compound_stmt|null|<list>list}"];
+P2[label="{<head>decl|<type>int|<var>var|<init_list>init_list}"];
+P3[label="{<head>local_var|<type>int|<name>a|<list>init_list}"];
+P2:var -> P3:head;
+P4[label="{<head>init|<type>int|offset:0|<value>value}"];
+P5[label="{<head>+|<type>int|<left_operand>left|<right_operand>right}"];
+P6[label="{<head>int_const|<type>int|value:1}"];
+P5:left_operand -> P6:head;
+P7[label="{<head>int_const|<type>int|value:2}"];
+P5:right_operand -> P7:head;
+P4:value -> P5:head;
+P2:init_list -> P4:head;
+P1:list -> P2:head;
+P0:body -> P1:head;
+}

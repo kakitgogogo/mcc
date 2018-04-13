@@ -110,20 +110,20 @@ public:
     virtual char* to_dot_graph(FILE* fout);
 public:
     double value;
-    char* label;
+    char* label = nullptr;
 };
 
 class StringNode: public Node {
 public:
     StringNode(TokenPtr first_token, Type* ty, char* value): 
-        Node(NK_LITERAL, ty, first_token), value(value), label(nullptr) {}
+        Node(NK_LITERAL, ty, first_token), value(value) {}
 
     virtual void codegen(Generator& gen);
 
     virtual char* to_dot_graph(FILE* fout);
 public:
     char* value;
-    char* label;
+    char* label = nullptr;
 };
 
 // local varirant include temporary variant

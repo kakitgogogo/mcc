@@ -7,8 +7,8 @@
 #include "generator.h"
 using namespace std;
 
-// (6 ∗ 8 + 16 ∗ 16) = 304
-#define REG_SAVE_AREA_SIZE 304
+// (6 ∗ 8 + 8 ∗ 16) = 176
+#define REG_SAVE_AREA_SIZE 176
 
 // according to linux x86_64-abi: 
 // User-level applications use as integer registers for passing the sequence
@@ -214,7 +214,7 @@ static const char* get_mov_inst(Type *type) {
     case 2: 
         return type->is_unsigned ? "movzwq" : "movswq";
     case 4: 
-        return type->is_unsigned ? "movzx" : "movslq";
+        return type->is_unsigned ? nullptr : "movslq";
     case 8: 
         return "movq";
     default:
@@ -233,7 +233,10 @@ void Generator::emit_local_load(Type* type, char* base, int offset) {
         emit("lea ?(%?), %rax", offset, base); break;
     default: {
         const char* inst = get_mov_inst(type);
-        emit("? ?(%?), %rax", inst, offset, base);
+        if(inst == nullptr) 
+            emit("movl ?(%?), %eax", offset, base);
+        else 
+            emit("? ?(%?), %rax", inst, offset, base);
         if(type->bitsize > 0) 
             emit_bitfield_load(type);
     }
@@ -264,7 +267,10 @@ void Generator::emit_global_load(Type* type, char* label, int offset) {
         emit("lea ?+?(%rip), %rax", label, offset); break;
     default: {
         const char* inst = get_mov_inst(type);
-        emit("? ?+?(%rip), %rax", inst, label, offset);
+        if(inst == nullptr) 
+            emit("movl ?+?(%rip), %rax", label, offset);
+        else 
+            emit("? ?+?(%rip), %rax", inst, label, offset);
         if(type->bitsize > 0) 
             emit_bitfield_load(type);
     }
@@ -864,8 +870,7 @@ void IntNode::codegen(Generator& gen) {
 void FloatNode::codegen(Generator& gen) {
     if(!label) {
         label = make_label();
-        gen.emit_noindent(".data");void emit_binop_int_arith(NodePtr node);
-    void emit_binop_float_arith(NodePtr node);
+        gen.emit_noindent(".data");
         gen.emit_label(label);
         if(type->kind == TK_FLOAT) {
             gen.emit(".long ?", *(uint32_t*)&value);
@@ -931,7 +936,7 @@ void UnaryOperNode::codegen(Generator& gen) {
         return;
     }
     case NK_ADDR: {
-        gen.emit_addr(shared_from_this());
+        gen.emit_addr(operand);
         return;
     }
     case NK_POST_INC:
@@ -1005,6 +1010,7 @@ void BinaryOperNode::codegen(Generator& gen) {
         gen.emit("je ?", end);
         gen.emit("movq $1, %rax");
         gen.emit_label(end);
+        return;
     }
     case P_LOGOR: {
         char* end = make_label();
@@ -1018,6 +1024,7 @@ void BinaryOperNode::codegen(Generator& gen) {
         gen.emit("jne ?", end);
         gen.emit("movq $0, %rax");
         gen.emit_label(end);
+        return;
     }
     case '=': {
         if(left->type->kind == TK_STRUCT && left->type->size > 8) {

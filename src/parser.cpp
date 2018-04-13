@@ -2388,7 +2388,7 @@ NodePtr Parser::read_case_stmt(TokenPtr tok) {
         end = begin;
     }
     if(!pp->next(':')) {
-        parser_error("expected ':'", label);
+        parser_error("expected ':'");
         return error_node;
     }
     vector<CaseTuple>& cases = scope->get_cases();
@@ -2409,6 +2409,10 @@ NodePtr Parser::read_default_stmt(TokenPtr tok) {
     char* default_label = make_label();
     if(scope->get_default_label()) {
         errort(tok, "duplicate default");
+        return error_node;
+    }
+    if(!pp->next(':')) {
+        parser_error("expected ':'");
         return error_node;
     }
     scope->set_switch_default(default_label);

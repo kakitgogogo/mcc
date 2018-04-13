@@ -1,0 +1,22 @@
+#include "utiltest.h"
+
+void test_int() {
+    int a = 1;
+    EXPECT_INT(a, 1);
+    EXPECT_INT(10*10*10, 1000);
+    EXPECT_INT(-100, 10*-10);
+    EXPECT_INT(4294967295L, 4294967295);
+    EXPECT_INT(0xFFFFFFF0, 4294967280);
+    EXPECT_INT(0xFFFFFFFF, 4294967295);
+    EXPECT_INT(0xFFFFFFFFF, 68719476735);
+    EXPECT_INT((int)(0xFFFFFFFF), -1);
+    EXPECT_INT(0xFFFFFFFFFFFFFFFF, 18446744073709551615L);
+    EXPECT_INT(0xFFFFFFFFFFFFFFFF+1, 0);
+
+    EXPECT_INT('\077', 077);
+}
+
+int main() {
+    test_int();
+    print_result(); 
+}
