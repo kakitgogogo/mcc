@@ -17,6 +17,13 @@ using namespace std;
 static char* REGS[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; 
 // static char* XMMS[8] = {"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
+#ifdef DEBUG_MODE
+
+#define errorp_old errorp
+
+#define errorp(...) { errorp_old(__VA_ARGS__); error("stop mcc"); }
+
+#endif
 
 Generator::Generator(char* filename, Parser* parser): parser(parser), fout(filename) {
     fout.setf(ios::fixed);
@@ -207,7 +214,7 @@ void Generator::emit_label(char* label) {
     emit("?:", label);
 }
 
-static const char* get_mov_inst(Type *type) {
+const char* Generator::get_mov_inst(Type *type) {
     switch (type->size) {
     case 1: 
         return type->is_unsigned ? "movzbq" : "movsbq";
@@ -218,7 +225,7 @@ static const char* get_mov_inst(Type *type) {
     case 8: 
         return "movq";
     default:
-        error("invalid data size: %s: %d", type->to_string(), type->size);
+        errorp(current_pos, "invalid mov data size: %s: %d", type->to_string(), type->size);
     }
 }
 
@@ -230,6 +237,7 @@ void Generator::emit_local_load(Type* type, char* base, int offset) {
     case TK_LONG_DOUBLE:
         emit("movsd ?(%?), %xmm0", offset, base); break;
     case TK_ARRAY:
+    case TK_STRUCT:
         emit("lea ?(%?), %rax", offset, base); break;
     default: {
         const char* inst = get_mov_inst(type);
@@ -264,6 +272,7 @@ void Generator::emit_local_save(Type* type, int offset) {
 void Generator::emit_global_load(Type* type, char* label, int offset) {
     switch(type->kind) {
     case TK_ARRAY: 
+    case TK_STRUCT:
         emit("lea ?+?(%rip), %rax", label, offset); break;
     default: {
         const char* inst = get_mov_inst(type);
@@ -304,7 +313,7 @@ void Generator::emit_literal_save(NodePtr node, Type* totype, int offset) {
         break;
     }
     case TK_FLOAT: {
-        double d = node->eval_float();
+        float d = node->eval_float();
         emit("movl $?, ?(%rbp)", *(uint32_t *)(&d), offset);
         break;
     }
@@ -607,10 +616,10 @@ void Generator::emit_copy_struct(NodePtr from, NodePtr to) {
 void Generator::emit_data_primtype(Type* type, NodePtr val, int subsection) {
     switch(type->kind) {
     case TK_BOOL:
-        emit(".byte ?", char(val->eval_int()));
+        emit(".byte ?", !!val->eval_int());
         return;
     case TK_CHAR:
-        emit(".byte ?", char(val->eval_int()));
+        emit(".byte ?", short(uint8_t(val->eval_int())));
         return;
     case TK_SHORT: 
         emit(".short ?", short(val->eval_int()));
@@ -859,15 +868,19 @@ void Generator::emit_reg_area_save() {
 
 // -------------------------------- codegen --------------------------------
 
+#define SAVE_CURRENT_POS gen.current_pos = shared_from_this()->first_token->get_pos()
+
 void Node::codegen(Generator& gen) {
     error("internal error: Node cannot generate code");
 }
 
 void IntNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     gen.emit("movq $?, %rax", (uint64_t)value);
 }
 
 void FloatNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     if(!label) {
         label = make_label();
         gen.emit_noindent(".data");
@@ -889,6 +902,7 @@ void FloatNode::codegen(Generator& gen) {
 }
 
 void StringNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     if(!label) {
         label = make_label();
         gen.emit_noindent(".data");
@@ -900,11 +914,13 @@ void StringNode::codegen(Generator& gen) {
 }
 
 void LocalVarNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     gen.emit_lvar_init(shared_from_this());
     gen.emit_local_load(type, "rbp", offset);
 }
 
 void GlobalVarNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     gen.emit_global_load(type, global_label, 0);
 }
 
@@ -917,6 +933,7 @@ void TypedefNode::codegen(Generator& gen) {
 }
 
 void UnaryOperNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     switch(kind) {
     case NK_DEREF: {
         operand->codegen(gen);
@@ -982,6 +999,7 @@ void UnaryOperNode::codegen(Generator& gen) {
 }
 
 void BinaryOperNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     switch(kind) {
     case '<':
     case P_LE:
@@ -1075,6 +1093,7 @@ void BinaryOperNode::codegen(Generator& gen) {
 }
 
 void TernaryOperNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     cond->codegen(gen);
     char* not_equal = make_label();
     gen.emit("test %rax, %rax");
@@ -1105,6 +1124,7 @@ The calling convention used by X86-64 on Linux is somewhat different and is know
 6.The return value of the function is placed in %eax.
 */
 void FuncCallNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     // If it is a built-in function, execute it directly
     if(func_name != nullptr && !strcmp(func_name, "__builtin_va_start")) {
         gen.emit_builtin_va_start(shared_from_this());
@@ -1225,19 +1245,23 @@ void FuncCallNode::codegen(Generator& gen) {
 }
 
 void StructMemberNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     gen.emit_struct_member_load(struc, type, 0);
 }
 
 void LabelAddrNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     assert(label != nullptr);
     gen.emit("movq $?, %rax", label);
 }
 
 void InitNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     error("internal error: InitNode cannot generate code");
 }
 
 void DeclNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     if(init_list.empty()) return;
     assert(var->kind == NK_LOCAL_VAR);
     shared_ptr<LocalVarNode> lvar = dynamic_pointer_cast<LocalVarNode>(var);
@@ -1245,12 +1269,14 @@ void DeclNode::codegen(Generator& gen) {
 }
 
 void CompoundStmtNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     for(auto stmt:list) {
         stmt->codegen(gen);
     }
 }
 
 void IfNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     cond->codegen(gen);
     char* not_equal = make_label();
     gen.emit("test %rax, %rax");
@@ -1271,16 +1297,19 @@ void IfNode::codegen(Generator& gen) {
 }
 
 void LabelNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     assert(normal_label != nullptr);
     gen.emit_label(normal_label);   
 }
 
 void JumpNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     assert(normal_label != nullptr);
     gen.emit("jmp ?", normal_label);
 }
 
 void ReturnNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     if(return_val) {
         return_val->codegen(gen);
         if(return_val->type->kind == TK_BOOL) {
@@ -1294,6 +1323,7 @@ void ReturnNode::codegen(Generator& gen) {
 static char* REGS_LOW[6] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; 
 
 void FuncDefNode::codegen(Generator& gen) {
+    SAVE_CURRENT_POS;
     gen.emit(".text");
     if(!type->is_static()) 
         gen.emit_noindent(".globl ?", func_name);
@@ -1377,7 +1407,10 @@ void FuncDefNode::codegen(Generator& gen) {
 
 void Generator::run() {
     vector<NodePtr> ast = parser->get_ast();
+    if(ast.size() == 0) return;
+    current_pos = ast[0]->first_token->get_pos();
     for(auto node:ast) {
+        stack_size = 8;
         if(node->kind == NK_FUNC_DEF) {
             node->codegen(*this);
         }

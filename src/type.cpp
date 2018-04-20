@@ -144,6 +144,8 @@ bool StructType::is_compatible(Type* type) {
     auto iter1 = fields.begin();
     auto iter2 = ty->fields.begin();
     for(; iter1 != fields.end(); ++iter1, ++iter2) {
+        if(iter1->second->kind == TK_PTR && iter2->second->kind == TK_PTR) 
+            continue;
         if(!iter1->second->is_compatible(iter2->second))
             return false;
     }

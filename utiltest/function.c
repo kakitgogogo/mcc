@@ -1,5 +1,11 @@
 #include "utiltest.h"
 
+struct node {
+    int val;
+    struct node* left;
+	struct node* right;
+};
+
 int func1() {
     return 1;
 }
@@ -10,9 +16,14 @@ int func2(int a) {
     return 0;
 }
 
-int factorial(int n) {
+static int factorial(int n) {
     if(n == 1) return 1;
     return n * factorial(n-1);
+}
+
+int eval_tree(struct node *root) {
+    if(root == NULL) return 0;
+    return root->val + eval_tree(root->left) + eval_tree(root->right);
 }
 
 void test_func() {
@@ -24,6 +35,11 @@ void test_func() {
     EXPECT_INT(func2(0), 0);
 
     EXPECT_INT(factorial(5), 120);
+
+    struct node root = {1}, left = {2,NULL,NULL}, right = {3,NULL,NULL};
+    root.left = &left;
+    root.right = &right;
+    EXPECT_INT(eval_tree(&root), 6);
 }
 
 int main() {

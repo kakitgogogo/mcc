@@ -20,6 +20,23 @@ struct struc3 {
     };
 };
 
+struct node {
+    int val;
+    struct node* left;
+	struct node* right;
+};
+
+struct compound {
+    struct {
+        int a;
+        int b;
+    }x;
+    struct {
+        float a;
+        float b;
+    }y;
+};
+
 void test_struct() {
     struct struc1 a = {1,2,3};
     struct struc2 b = {1,2,3};
@@ -36,6 +53,23 @@ void test_struct() {
     EXPECT_INT(c.a, 1);
     EXPECT_INT(c.b, 2);
     EXPECT_INT(c.c, 3);
+
+    struct node root, left, right;
+    root.val = 1;
+    left.val = 2;
+    right.val = 3;
+    root.left = &left;
+    root.right = &right;
+    EXPECT_INT(root.val, 1);
+    EXPECT_INT(root.left->val, 2);
+    EXPECT_INT(root.right->val, 3);
+
+    struct compound cmpd = {{1,1},.y = {2.0,2.0}};
+    EXPECT_INT(sizeof(cmpd), 16);
+    EXPECT_INT(cmpd.x.a, 1);
+    EXPECT_INT(cmpd.x.b, 1);
+    EXPECT_DOUBLE(cmpd.y.a, 2.0);
+    EXPECT_DOUBLE(cmpd.y.b, 2.0);
 }
 
 int main() {

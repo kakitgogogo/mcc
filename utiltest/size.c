@@ -35,10 +35,30 @@ struct struc3 {
     };
 };
 
+#define key_type 	unsigned int
+
+struct node
+{
+	int color;
+	key_type key;
+	struct node* left;
+	struct node* right;
+	struct node* parent;
+};
+
+struct item
+{
+	int val;
+	struct node node;
+};
+
 void test_struct_size() {
     EXPECT_INT(sizeof(struct struc1), 16);
     EXPECT_INT(sizeof(struct struc2), 4);
     EXPECT_INT(sizeof(struct struc3), 24);
+    EXPECT_INT(sizeof(struct node), 32);
+    struct item i;
+    EXPECT_INT(sizeof(i), 40);
 }
 
 union union1 {

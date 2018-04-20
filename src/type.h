@@ -150,7 +150,7 @@ public:
         align = ty->align;
     }
 
-    bool is_string_type() { return elem_type->kind == TK_CHAR; }
+    virtual bool is_string_type() { return elem_type->kind == TK_CHAR; }
 
     virtual char* to_string();
     virtual bool is_compatible(Type* type);
@@ -168,7 +168,7 @@ public:
 
 class StructType: public Type {
 public:
-    StructType(int kind, char* name = nullptr): Type(kind), name(name) {
+    StructType(int kind, char* name = nullptr): Type(kind, 0, 1), name(name) {
         assert(kind == TK_STRUCT || kind == TK_UNION);
     }
     virtual char* to_string();
@@ -176,6 +176,8 @@ public:
 
     virtual Type* copy() { 
         StructType* type = new StructType(kind, name); 
+        type->size = size;
+        type->align = align;
         copy_aux(type);
         type->fields = fields;
         type->from_copy = true;

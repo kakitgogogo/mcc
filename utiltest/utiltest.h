@@ -16,7 +16,7 @@ int test_pass = 0;
     } while(0)
 
 #define EXPECT_INT(expect, actual) EXPECT_BASE((expect) == (actual), expect, actual, "%lld")
-#define EXPECT_DOUBLE(expect, actual) EXPECT_BASE((expect) == (actual), expect, actual, "%.17g")
+#define EXPECT_DOUBLE(expect, actual) EXPECT_BASE((expect) == (actual), expect, actual, "%lf")
 #define EXPECT_STRING(expect, actual) \
     EXPECT_BASE(strcmp(expect, actual) == 0, expect, actual, "%s")
 #define EXPECT_TRUE(actual) EXPECT_BASE((actual) != 0, "true", "false", "%s")

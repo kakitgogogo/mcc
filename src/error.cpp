@@ -35,6 +35,7 @@ void errorp(const Pos& pos, char* fmt, ...) {
     va_start(args, fmt);
     errorp_format("ERROR", pos, fmt, args);
     va_end(args);
+
 }
 
 void warnp(const Pos& pos, char* fmt, ...) {

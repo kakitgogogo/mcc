@@ -81,6 +81,10 @@ public:
 
 public:
     int stack_size = 0;
+    Pos current_pos;
+
+private:
+    const char* get_mov_inst(Type *type);
 
 private:
     std::ofstream fout;

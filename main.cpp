@@ -14,6 +14,7 @@
 using namespace std;
 
 #define MAX_INPUT_FILES 100
+#define MAX_LIBS 100
 
 Buffer cmd_define_buf;
 bool preprocessing_only = false;
@@ -21,6 +22,7 @@ bool compile_only = false;
 bool do_not_link = false;
 char* output_file = nullptr;
 vector<char*> include_path;
+vector<char*> libs;
 vector<char*> input_files;
 vector<char*> asm_files;
 vector<char*> obj_files;
@@ -37,13 +39,14 @@ static void usage() {
     "-I <path>                add include path\n"
     "-D <name>[=def]          Predefine name as a macro\n"
     "-U <name>                Undefine name\n"
+    "-l <library>             link library\n"
     );
     exit(1);
 }
 
 static void arg_parse(int argc, char* argv[]) {
     while(true) {
-        int opt = getopt(argc, argv, "hESco:I:D:U:");
+        int opt = getopt(argc, argv, "hESco:I:D:U:l:");
         if(opt == -1) break;
         switch(opt) {
         case 'h': usage();
@@ -60,6 +63,10 @@ static void arg_parse(int argc, char* argv[]) {
         }
         case 'U': {
             cmd_define_buf.write("#undef %s\n", optarg);
+            break;
+        }
+        case 'l': {
+            libs.push_back(optarg);
             break;
         }
         default:
@@ -162,12 +169,15 @@ int main(int argc, char* argv[]) {
     }
 
     int i = 3;
-    char* gcc_cmd_args[MAX_INPUT_FILES+1];
+    char* gcc_cmd_args[MAX_INPUT_FILES+MAX_LIBS+1];
     gcc_cmd_args[0] = "gcc";
     gcc_cmd_args[1] = "-o";
     gcc_cmd_args[2] = output_file;
     for(auto obj_file:obj_files) {
         gcc_cmd_args[i++] = obj_file;
+    }
+    for(auto lib:libs) {
+        gcc_cmd_args[i++] = format("-l%s", lib);
     }
     gcc_cmd_args[i] = NULL;
 

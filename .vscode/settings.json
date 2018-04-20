@@ -57,6 +57,10 @@
         "future": "cpp",
         "valarray": "cpp",
         "stddef.h": "c",
-        "a.h": "c"
+        "a.h": "c",
+        "math.h": "c",
+        "huge_val.h": "c",
+        "errno.h": "c",
+        "utiltest.h": "c"
     }
 }

@@ -262,7 +262,7 @@ bool Parser::is_type_name(TokenPtr tok) {
 
 bool Parser::is_assignable(Type* type1, Type* type2) {
     if((type1->is_arith_type() || type1->kind == TK_PTR) &&
-        (type2->is_arith_type() || type1->kind == TK_PTR))
+        (type2->is_arith_type() || type2->kind == TK_PTR))
         return true;
     if(type1->is_compatible(type2)) return true;
     parser_error("incompatible kind: '%s' and '%s'", 
@@ -375,7 +375,17 @@ NodePtr Parser::read_prim_expr() {
                 errort(t, "compound stmt in here should not be empty");
                 return error_node;
             }
-            node = dynamic_pointer_cast<CompoundStmtNode>(stmt)->list.back();
+            shared_ptr<CompoundStmtNode> cstmt = 
+                dynamic_pointer_cast<CompoundStmtNode>(stmt);
+            node = cstmt;
+            if(cstmt->list.size() > 0) {
+                if(!cstmt->list.back()->type) {
+                    node->type = type_void;
+                }
+                else {
+                    node->type = cstmt->list.back()->type;
+                }
+            }
         }
         else {
             node = read_expr();
@@ -692,7 +702,7 @@ vector<NodePtr> Parser::read_func_call_args(Type* func_type) {
         NodePtr arg = convert(read_assign_expr());
         Type* param_type;
         if(i < param_types.size()) {
-            param_type = param_types[i];
+            param_type = param_types[i++];
         }
         else {
             param_type = arg->type->is_float_type() ? type_double :
@@ -1548,7 +1558,8 @@ update_type:
     }
     // update done
 complete_type:
-    if(sclass || !type_qualifier.empty() || is_inline || is_noreturn || align != -1) {
+    if((sclass && sclass != KW_TYPEDEF) || !type_qualifier.empty() 
+            || is_inline || is_noreturn || align != -1) {
         type = type->copy();
     }
     type->storage_class = sclass;
@@ -2088,19 +2099,22 @@ void Parser::read_initializer_list(std::vector<NodePtr>& init_list,
     Type* type, int offset) {
     TokenPtr tok = pp->get_token();
     if(type->is_string_type()) {
-        assign_string(init_list, type, tok, offset);
-        return;
-    }
-    if(tok->kind == '{' && pp->peek_token()->kind == TSTRING) {
-        tok = pp->get_token();
-        assign_string(init_list, type, tok, offset);
-        if(!pp->next('}')) {
-            parser_error("expected '}'");
+        if(tok->kind == TSTRING) {
+            assign_string(init_list, type, tok, offset);
+            return;
         }
-        return;
+        if(tok->kind == '{' && pp->peek_token()->kind == TSTRING) {
+            tok = pp->get_token();
+            assign_string(init_list, type, tok, offset);
+            if(!pp->next('}')) {
+                parser_error("expected '}'");
+            }
+            return;
+        }
     }
+    
     // pp->unget_token(tok);
-    if(type->kind == TK_STRUCT) {
+    if(type->kind == TK_STRUCT || type->kind == TK_UNION) {
         read_struct_initializer_list(init_list, type, offset);
     }
     else if(type->kind == TK_ARRAY) {
@@ -2314,7 +2328,7 @@ void Parser::read_designator_list_tail(vector<NodePtr>& init_list, Type* type,
     int offset) {
     TokenPtr tok = pp->peek_token();
     pp->next('=');
-    if(type->kind == TK_STRUCT || type->kind == TK_ARRAY) {
+    if(type->kind == TK_STRUCT || type->kind == TK_UNION || type->kind == TK_ARRAY) {
         return read_initializer_list(init_list, type, offset);
     } 
     else if(pp->next('{')) {
@@ -2331,7 +2345,7 @@ void Parser::read_designator_list_tail(vector<NodePtr>& init_list, Type* type,
                 type->to_string(), value->type->to_string());
             return;
         }
-        init_list.push_back(make_init_node(tok ,type, value, offset));
+        init_list.push_back(make_init_node(tok, type, value, offset));
     }
 }
 
@@ -2646,18 +2660,19 @@ NodePtr Parser::read_for_stmt(TokenPtr tok) {
     NodePtr cond = nullptr;
     if(!pp->next(';')) {
         cond = read_boolean_expr();
-    }
-    if(!pp->next(';')) {
-        parser_error("expected ';'");
-        return error_node;
+        if(!pp->next(';')) {
+            parser_error("expected ';'");
+            return error_node;
+        }
     }
     NodePtr step = nullptr;
-    if(!pp->next(')'))
-        step = read_expr();
     if(!pp->next(')')) {
-        parser_error("expected ')'");
-        return error_node;
-    }
+        step = read_expr();
+        if(!pp->next(')')) {
+            parser_error("expected ')'");
+            return error_node;
+        }
+    }   
 
     NodePtr body = read_stmt();
 
@@ -2773,10 +2788,91 @@ void Parser::read_extern_decl() {
     while(true) {
         if(pp->peek_token()->kind == TEOF)
             return;
-        if(is_func_def())
-            toplevers.push_back(read_func_def());
-        else
-            read_decl(toplevers, true);
+        TokenPtr tok = pp->peek_token();
+        if(tok->kind == KW_STATIC_ASSERT) {
+            tok = pp->get_token();
+            read_static_assert(tok);
+            continue;
+        }
+        Type* basetype = read_decl_spec_opt();
+        if(pp->next(';')) continue;
+
+        // regard as function define
+        scope->in();
+        labels.clear();
+        gotos.clear();
+
+        char* name;
+        vector<NodePtr> params;
+        Type* type = read_declarator(&name, basetype, &params, DK_CONCRETE);
+        tok = pp->peek_token();
+        bool is_func = is_type_name(tok) || tok->kind == '{';  
+        // function define      
+        if(is_func) {
+            FuncType* func_type = dynamic_cast<FuncType*>(type);
+            if(func_type->has_var_param && func_type->param_types.size() == 0) {
+                func_type->has_var_param = false;
+            }
+            if(func_type->is_old_style) {
+                read_oldstyle_param_type(func_type, params);
+            }
+
+            make_globalvar_node(tok, func_type, name, scope);
+            if(!pp->next('{')) {
+                parser_error("expected '{'");
+                return;
+            }
+            
+            NodePtr func = read_func_body(tok, func_type, name, params);
+
+            // Normalize the label-name of gotos and labels
+            for(auto g:gotos) {
+                assert(g->kind == NK_JUMP);
+                shared_ptr<JumpNode> src = dynamic_pointer_cast<JumpNode>(g);
+                char* label = src->origin_label;
+                auto iter = labels.find(label);
+                if(iter == labels.end()) {
+                    errort(src->first_token, "label ‘%s’ used but not defined", label);
+                    return;
+                }
+                shared_ptr<LabelNode> dst = dynamic_pointer_cast<LabelNode>(iter->second);
+                src->normal_label = dst->normal_label;
+            }
+
+            scope->out();
+            toplevers.push_back(func);
+        }
+        // declaration
+        else {
+            scope->out();
+            while(true) {
+                if(type->storage_class == KW_TYPEDEF) {
+                    make_typedef_node(tok, type, name, scope);
+                }
+                else {
+                    if(type->kind == TK_VOID) {
+                        errort(tok, "type void is not allowed");
+                        return;
+                    }
+                    NodePtr var = make_globalvar_node(tok, type, name, scope);
+                    shared_ptr<DeclNode> decl_node = make_decl_node(tok, type, var);
+                    if(pp->next('=')) {
+                        read_initializer(type, decl_node->init_list);
+                        toplevers.push_back(decl_node);
+                    }
+                    else if(type->storage_class != KW_EXTERN && type->kind != TK_FUNC) {
+                        toplevers.push_back(decl_node);
+                    }
+                }
+                if(pp->next(';')) break;
+                if(!pp->next(',')) {
+                    parser_error("';' or ',' are expected");
+                    return;
+                }
+                char* name = nullptr;
+                type = read_declarator(&name, copy_incomplete_type(basetype), nullptr, DK_CONCRETE);
+            }
+        }
     }
 }
 
@@ -2787,62 +2883,64 @@ func_def_tail : decl_list compound_stmt | compound_stmt
 decl_list : decl decl_list_tail
 decl_list_tail : decl decl_list_tail | 'empty'
 */
-NodePtr Parser::read_func_def() {
-    TokenPtr tok = pp->peek_token();
-    Type* basetype = read_decl_spec_opt();
+// ------------- used in old version ---------------
+// NodePtr Parser::read_func_def() {
+//     TokenPtr tok = pp->peek_token();
+//     Type* basetype = read_decl_spec_opt();
 
-    scope->in();
-    labels.clear();
-    gotos.clear();
+//     scope->in();
+//     labels.clear();
+//     gotos.clear();
 
-    char* name;
-    vector<NodePtr> params;
-    Type* type =read_declarator(&name, basetype, &params, DK_CONCRETE);
-    FuncType* func_type = dynamic_cast<FuncType*>(type);
-    if(func_type->has_var_param && func_type->param_types.size() == 0) {
-        func_type->has_var_param = false;
-    }
-    if(func_type->is_old_style) {
-        read_oldstyle_param_type(func_type, params);
-    }
+//     char* name;
+//     vector<NodePtr> params;
+//     Type* type = read_declarator(&name, basetype, &params, DK_CONCRETE);
+//     FuncType* func_type = dynamic_cast<FuncType*>(type);
+//     if(func_type->has_var_param && func_type->param_types.size() == 0) {
+//         func_type->has_var_param = false;
+//     }
+//     if(func_type->is_old_style) {
+//         read_oldstyle_param_type(func_type, params);
+//     }
 
-    make_globalvar_node(tok, func_type, name, scope);
-    if(!pp->next('{')) {
-        parser_error("expected '{'");
-        return error_node;
-    }
+//     make_globalvar_node(tok, func_type, name, scope);
+//     if(!pp->next('{')) {
+//         parser_error("expected '{'");
+//         return error_node;
+//     }
     
-    NodePtr func = read_func_body(tok, func_type, name, params);
+//     NodePtr func = read_func_body(tok, func_type, name, params);
 
-    // Normalize the label-name of gotos and labels
-    for(auto g:gotos) {
-        assert(g->kind == NK_JUMP);
-        shared_ptr<JumpNode> src = dynamic_pointer_cast<JumpNode>(g);
-        char* label = src->origin_label;
-        auto iter = labels.find(label);
-        if(iter == labels.end()) {
-            errort(src->first_token, "label ‘%s’ used but not defined", label);
-            return error_node;
-        }
-        shared_ptr<LabelNode> dst = dynamic_pointer_cast<LabelNode>(iter->second);
-        src->normal_label = dst->normal_label;
-    }
+//     // Normalize the label-name of gotos and labels
+//     for(auto g:gotos) {
+//         assert(g->kind == NK_JUMP);
+//         shared_ptr<JumpNode> src = dynamic_pointer_cast<JumpNode>(g);
+//         char* label = src->origin_label;
+//         auto iter = labels.find(label);
+//         if(iter == labels.end()) {
+//             errort(src->first_token, "label ‘%s’ used but not defined", label);
+//             return error_node;
+//         }
+//         shared_ptr<LabelNode> dst = dynamic_pointer_cast<LabelNode>(iter->second);
+//         src->normal_label = dst->normal_label;
+//     }
 
-    scope->out();
-    return func;
-}
+//     scope->out();
+//     return func;
+// }
 
-bool Parser::is_func_def() {
-    pp->open_undo_mode();
-    Type* basetype = read_decl_spec_opt();
-    char* name;
-    vector<NodePtr> params;
-    read_declarator(&name, basetype, &params, DK_OPTIONAL);
-    TokenPtr tok = pp->get_token();
-    bool is_func = is_type_name(tok) || tok->kind == '{';
-    pp->undo();
-    return is_func;
-}
+// ------------- used in old version ---------------
+// bool Parser::is_func_def() {
+//     pp->open_undo_mode();
+//     Type* basetype = read_decl_spec_opt();
+//     char* name;
+//     vector<NodePtr> params;
+//     read_declarator(&name, basetype, &params, DK_OPTIONAL);
+//     TokenPtr tok = pp->get_token();
+//     bool is_func = is_type_name(tok) || tok->kind == '{';
+//     pp->undo();
+//     return is_func;
+// }
 
 void Parser::read_oldstyle_param_type(FuncType* func_type, vector<NodePtr>& params) {
     vector<NodePtr> list;
