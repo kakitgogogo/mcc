@@ -128,15 +128,14 @@ int Lexer::read_hex_char() {
         return 0xD800;
     }
     int h = 0;
-    while(true) {
-        c = fileset.get_chr();
+    for(;;c = fileset.get_chr()) {
         switch (c) {
         case '0' ... '9': 
-            h = (h << 4) | (c - '0'); break;
+            h = (h << 4) | (c - '0'); continue;
         case 'a' ... 'f': 
-            h = (h << 4) | (c - 'a' + 10); break;
+            h = (h << 4) | (c - 'a' + 10); continue;
         case 'A' ... 'F': 
-            h = (h << 4) | (c - 'A' + 10); break;
+            h = (h << 4) | (c - 'A' + 10); continue;
         default: 
             if(c > 0xFF) warnp(pos, "hex escape sequence out of range");
             fileset.unget_chr(c); return h;
@@ -167,7 +166,7 @@ int Lexer::read_universal_char(int len) {
     // A universal character name shall not specify a character whose short identifier is less than
     // 00A0 other than 0024 ($), 0040 (@), or 0060 (‘), nor one in the range D800 through
     // DFFF inclusive.
-    if((u >= 0xD800 && u <= 0xDFFF) || (u <= 0xA0 && (u != '$' || u != '@' || u != '`'))) {
+    if((u >= 0xD800 && u <= 0xDFFF) || (u <= 0xA0 && (u != '$' && u != '@' && u != '`'))) {
         errorp(pos, "\\%c%0*x is not a valid universal character", (len == 4) ? 'u' : 'U', len, u);
         return 0xD800;
     }

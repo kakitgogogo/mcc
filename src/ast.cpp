@@ -42,20 +42,20 @@ std::shared_ptr<StringNode> make_string_node(TokenPtr first_token, char* str, in
     // Default encode method is utf8. After lexer, string encoding is utf8
     case ENC_NONE:
     case ENC_UTF8: {
-        type = make_array_type(type_char, len);
+        type = make_array_type(type_char, len + 1);
         value = str;
         break;
     }
     case ENC_CHAR16: {
         Buffer buf = encode_utf16(str, len);
-        type = make_array_type(type_ushort, buf.size() / type_ushort->size);
+        type = make_array_type(type_ushort, buf.size() / type_ushort->size + 1);
         value = buf.data();
         break;
     }
     case ENC_CHAR32:
     case ENC_WCHAR: {
         Buffer buf = encode_utf32(str, len);
-        type = make_array_type(type_uint, buf.size() / type_uint->size);
+        type = make_array_type(type_uint, buf.size() / type_uint->size + 1);
         value = buf.data();
         break;
     }

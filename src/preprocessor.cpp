@@ -213,6 +213,11 @@ TokenPtr Preprocessor::expand_aux() {
         auto args = vector<vector<TokenPtr>>{};
         vector<TokenPtr> toks;
         subst(macro, args, hideset, toks);
+        for(auto subtok:toks) {
+            subtok->filename = tok->filename;
+            subtok->row = tok->row;
+            subtok->col = tok->col;
+        }
         if(toks.size() > 0) {
             toks[0]->leading_space = tok->leading_space;
             toks[0]->begin_of_line = tok->begin_of_line;
@@ -236,6 +241,11 @@ TokenPtr Preprocessor::expand_aux() {
         hideset.insert(name);
         vector<TokenPtr> toks;
         subst(macro, args, hideset, toks);
+        for(auto subtok:toks) {
+            subtok->filename = tok->filename;
+            subtok->row = tok->row;
+            subtok->col = tok->col;
+        }
         if(toks.size() > 0) {
             toks[0]->leading_space = tok->leading_space;
             toks[0]->begin_of_line = tok->begin_of_line;

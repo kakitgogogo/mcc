@@ -842,25 +842,28 @@ void Generator::emit_builtin_va_start(NodePtr node) {
 void Generator::emit_builtin_reg_class(NodePtr node) {
     assert(node->kind == NK_FUNC_CALL);
     NodePtr arg = dynamic_pointer_cast<FuncCallNode>(node)->args[0];
+    if(arg->kind == NK_CONV) {
+        arg = dynamic_pointer_cast<UnaryOperNode>(arg)->operand;
+    }
     assert(arg->type->kind == TK_PTR);
     Type* type = dynamic_cast<PtrType*>(arg->type)->ptr_type;
     if(type->kind == TK_STRUCT) {
-        emit("mov $2, %eax");
+        emit("movl $2, %eax");
     }
     else if(type->is_float_type()) {
-        emit("mov $1, %eax");
+        emit("movl $1, %eax");
     }
     else {
-        emit("mov $0, %eax");
+        emit("movl $0, %eax");
     }
 }
 
 void Generator::emit_reg_area_save() {
     emit("sub $?, %rsp", REG_SAVE_AREA_SIZE);
     for(int i = 0; i < 6; ++i) {
-        emit("mov %?, ?(%rsp)", REGS[i], 8 * i);
+        emit("movq %?, ?(%rsp)", REGS[i], 8 * i);
     }
-    for(int i = 0; i < 16; ++i) {
+    for(int i = 0; i < 8; ++i) {
         emit("movaps %xmm?, ?(%rsp)", i, 48 + 16 * i);
     }
 }
@@ -1227,7 +1230,7 @@ void FuncCallNode::codegen(Generator& gen) {
 
     // restore registers
     if(others_size > 0) {
-        gen.emit("add %?, %rsp", others_size);
+        gen.emit("add $?, %rsp", others_size);
         gen.stack_size -= others_size;
     }
     if(padding) {

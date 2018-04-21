@@ -44,3 +44,6 @@
 
 typedef unsigned short char16_t;
 typedef unsigned int char32_t;
+
+int __builtin_reg_class(void*);
+void __builtin_va_start(void*);

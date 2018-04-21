@@ -1,4 +1,4 @@
-#include "utiltest.h"
+#include "unittest.h"
 
 void test_builtin_size() {
     EXPECT_INT(sizeof(char), 1);
