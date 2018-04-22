@@ -289,7 +289,7 @@ std::shared_ptr<Token> Lexer::read_string(int enc) {
     buf.write('\0');
     if(has_invalid_char) // read_hex_char() or read_universal_char() occurs error
         return make_token(TINVALID, pos);
-    return make_string(buf.data(), enc, pos);
+    return make_string(buf.data(), buf.size(), enc, pos);
 }
 
 std::shared_ptr<Token> Lexer::read_token() {

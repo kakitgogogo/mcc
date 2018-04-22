@@ -9,6 +9,7 @@ mcc: main.cpp $(SOURCE)
 	export POSIXLY_CORRECT=y
 	sudo cp include/*.h /usr/local/mcc/include
 	$(CXX) $(CXXFLAG) $(INCL) -o $@ $^
+	sudo cp mcc /usr/local/bin/
 
 all_test:
 	cd test/misc && $(MAKE) all

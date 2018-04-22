@@ -1,3 +1,5 @@
+#/bin/bash
+
 for file in *
 do
     filename=$(basename "$file")
@@ -5,7 +7,8 @@ do
     target="${filename%.*}"
     if [ "$extension" == "c" ]
     then
-        ../mcc -o $target $file
+        echo "==================== "$filename" ======================"
+        mcc -o $target $file
         ./$target
         rm $target
     fi

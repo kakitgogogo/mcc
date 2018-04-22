@@ -6,6 +6,13 @@ struct pair {
     float b;
 };
 
+typedef struct floatstr floatstr;
+
+struct floatstr {
+    char* str;
+    double val;
+};
+
 void test_float1() {
     float a = 1.0;
     EXPECT_DOUBLE(a, 1.0);
@@ -24,6 +31,13 @@ void test_float1() {
 }
 
 void test_float2() {
+    EXPECT_DOUBLE(0.0, strtod("0", NULL));
+    EXPECT_DOUBLE(0.0, strtod("-0", NULL));
+    EXPECT_DOUBLE(0.0, strtod("-0.0", NULL));
+    EXPECT_DOUBLE(1.0, strtod("1", NULL));
+    EXPECT_DOUBLE(-1.0, strtod("-1", NULL));
+    EXPECT_DOUBLE(1.5, strtod("1.5", NULL));
+    EXPECT_DOUBLE(-1.5, strtod("-1.5", NULL));
     EXPECT_DOUBLE(3.1416, strtod("3.1416", NULL));
     EXPECT_DOUBLE(1E10, strtod("1E10", NULL));
     EXPECT_DOUBLE(1e10, strtod("1e10", NULL));
@@ -48,8 +62,21 @@ void test_float2() {
     EXPECT_DOUBLE(-1.7976931348623157e+308, strtod("-1.7976931348623157e+308", NULL));
 }
 
+void test_float3() {
+    floatstr* fs = malloc(sizeof(floatstr));
+    char* end;
+    fs->str = "3.14";
+    fs->val = strtod(fs->str, &end);
+    EXPECT_DOUBLE(fs->val, 3.14);
+
+    float* d = malloc(sizeof(float));
+    *d = 1;
+    EXPECT_DOUBLE(*d, 1.0);
+}
+
 int main() {
     test_float1();
     test_float2();
+    test_float3();
     print_result(); 
 }

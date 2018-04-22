@@ -14,6 +14,11 @@ void test_builtin_size() {
     EXPECT_INT(sizeof(long double), 8);
 
     EXPECT_INT(sizeof(float*), 8);
+
+    EXPECT_INT(sizeof(""), 1);
+    EXPECT_INT(sizeof("xxx"), 4);
+    EXPECT_INT(sizeof("Hello\0World"), 12);
+    EXPECT_INT(sizeof("\"Hello\\u0000World\""), 19);
 }
 
 struct struc1 {

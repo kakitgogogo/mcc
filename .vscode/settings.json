@@ -62,6 +62,7 @@
         "huge_val.h": "c",
         "errno.h": "c",
         "utiltest.h": "c",
-        "unittest.h": "c"
+        "unittest.h": "c",
+        "leptjson.h": "c"
     }
 }

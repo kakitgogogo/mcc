@@ -495,7 +495,7 @@ NodePtr Parser::read_constant(TokenPtr t) {
 
 NodePtr Parser::read_string(TokenPtr t) {
     shared_ptr<String> tok = dynamic_pointer_cast<String>(t);
-    return make_string_node(tok, tok->value, tok->encode_method);
+    return make_string_node(tok, tok->value, tok->size, tok->encode_method);
 }
 
 /*
@@ -2980,7 +2980,7 @@ NodePtr Parser::read_func_body(TokenPtr tok, FuncType* func_type, char* fname, v
     scope->in(func_type);
     scope->clear_local_var();
 
-    NodePtr func_name =  make_string_node(tok, fname, ENC_NONE);
+    NodePtr func_name =  make_string_node(tok, fname, strlen(fname)+1, ENC_NONE);
     scope->add("__func__", func_name);
     scope->add("__FUNCTION__", func_name);
     NodePtr body = read_compound_stmt(tok);

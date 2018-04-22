@@ -33,8 +33,7 @@ std::shared_ptr<FloatNode> make_float_node(TokenPtr first_token, Type* type, dou
     return std::shared_ptr<FloatNode>(new FloatNode(first_token, type, value));
 }
 
-std::shared_ptr<StringNode> make_string_node(TokenPtr first_token, char* str, int encode_method) {
-    int len = strlen(str);
+std::shared_ptr<StringNode> make_string_node(TokenPtr first_token, char* str, int len, int encode_method) {
     Type* type;
     char* value;
 
@@ -42,7 +41,7 @@ std::shared_ptr<StringNode> make_string_node(TokenPtr first_token, char* str, in
     // Default encode method is utf8. After lexer, string encoding is utf8
     case ENC_NONE:
     case ENC_UTF8: {
-        type = make_array_type(type_char, len + 1);
+        type = make_array_type(type_char, len);
         value = str;
         break;
     }

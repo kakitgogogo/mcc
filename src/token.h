@@ -143,17 +143,19 @@ public:
 
 class String: public Token {
 public:
-    String(char* val, int e): Token(TSTRING), value(val), encode_method(e) {}
+    String(char* val, int size, int e): 
+        Token(TSTRING), value(val), size(size), encode_method(e) {}
     virtual char* to_string();
 
     virtual std::shared_ptr<Token> copy() {
-        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new String(value, encode_method));
+        std::shared_ptr<Token> tok = std::shared_ptr<Token>(new String(value, size, encode_method));
         copy_aux(tok);
         return tok;
     }
 public:
     char* value;
     int encode_method;
+    int size;
 };
 
 std::shared_ptr<Token> make_token(int kind, const Pos& pos);
@@ -161,4 +163,4 @@ std::shared_ptr<Token> make_keyword(int kind, const Pos& pos);
 std::shared_ptr<Token> make_ident(char* name, const Pos& pos);
 std::shared_ptr<Token> make_number(char* s, const Pos& pos);
 std::shared_ptr<Token> make_char(char c, int enc, const Pos& pos);
-std::shared_ptr<Token> make_string(char* s, int enc, const Pos& pos);
+std::shared_ptr<Token> make_string(char* s, int size, int enc, const Pos& pos);

@@ -274,6 +274,11 @@ void Generator::emit_global_load(Type* type, char* label, int offset) {
     case TK_ARRAY: 
     case TK_STRUCT:
         emit("lea ?+?(%rip), %rax", label, offset); break;
+    case TK_FLOAT:
+        emit("movss ?+?(%rip), %xmm0", label, offset); break;
+    case TK_DOUBLE:
+    case TK_LONG_DOUBLE:
+        emit("movsd ?+?(%rip), %xmm0", label, offset); break;
     default: {
         const char* inst = get_mov_inst(type);
         if(inst == nullptr) 
@@ -400,17 +405,35 @@ void Generator::emit_addr(NodePtr node) {
 // The address of the target is stored in rax, 
 // and the value to be assigned is stored on the stack.
 void Generator::emit_deref_save_aux(Type* type, int offset) {
-    emit("movq (%rsp), %rcx");
-    const char* reg = get_reg(type, 'c');
-    emit("mov %?, ?(%rax)", reg, offset);
-    pop("rax");
+    if(type->is_float_type()) {
+        emit("movsd (%rsp), %xmm0");
+        if(type->kind == TK_FLOAT) {
+            emit("movss %xmm0, ?(%rax)", offset);
+        }
+        else {
+            emit("movsd %xmm0, ?(%rax)", offset);
+        }
+        pop_xmm(0);
+    }
+    else {
+        emit("movq (%rsp), %rcx");
+        const char* reg = get_reg(type, 'c');
+        emit("mov %?, ?(%rax)", reg, offset);
+        pop("rax");
+    }
 }
 
 void Generator::emit_deref_save(NodePtr node) {
-    push("rax");
     shared_ptr<UnaryOperNode> deref = dynamic_pointer_cast<UnaryOperNode>(node);
+    Type* type = dynamic_cast<PtrType*>(deref->operand->type)->ptr_type;
+    if(type->is_float_type()) {
+        push_xmm(0);
+    }
+    else {
+        push("rax");
+    }
     deref->operand->codegen(*this);
-    emit_deref_save_aux(dynamic_cast<PtrType*>(deref->operand->type)->ptr_type, 0);
+    emit_deref_save_aux(type, 0);
 }
 
 void Generator::emit_struct_member_save(NodePtr struc, Type* field_type, int offset) {
@@ -427,7 +450,12 @@ void Generator::emit_struct_member_save(NodePtr struc, Type* field_type, int off
         return;
     }
     case NK_DEREF: {
-        push("rax");
+        if(field_type->is_float_type()) {
+            push_xmm(0);
+        }
+        else {
+            push("rax");
+        }
         shared_ptr<UnaryOperNode> deref = dynamic_pointer_cast<UnaryOperNode>(struc);
         deref->operand->codegen(*this);
         emit_deref_save_aux(field_type, offset + field_type->offset);
@@ -661,7 +689,9 @@ void Generator::emit_data_primtype(Type* type, NodePtr val, int subsection) {
             char *label = make_label();
             emit(".data ?", subsection + 1);
             emit_label(label);
-            emit(".string \"?\"", quote_string(dynamic_pointer_cast<StringNode>(val)->value));
+            char* value = dynamic_pointer_cast<StringNode>(val)->value;
+            assert(val->type->kind == TK_ARRAY);
+            emit(".string \"?\"", quote_string(value, dynamic_cast<ArrayType*>(val->type)->length));
             emit(".data ?", subsection);
             emit(".quad ?", label);
             return;
@@ -910,7 +940,13 @@ void StringNode::codegen(Generator& gen) {
         label = make_label();
         gen.emit_noindent(".data");
         gen.emit_label(label);
-        gen.emit(".string \"?\"", quote_string(value));
+        if(strlen(value) == 0) {
+            gen.emit(".string \"\"");
+        }
+        else {
+            assert(type->kind == TK_ARRAY);
+            gen.emit(".string \"?\"", quote_string(value, dynamic_cast<ArrayType*>(type)->length));
+        }
         gen.emit_noindent(".text");
     }
     gen.emit("lea ?(%rip), %rax", label);
@@ -1191,20 +1227,37 @@ void FuncCallNode::codegen(Generator& gen) {
         }
     }
 
+    // The following commented code is wrong; rdx, rcx may be changed.
+    // for(int i = 0; i < float_args.size(); ++i) {
+    //     float_args[i]->codegen(gen);
+    //     if(i == 0) {
+    //         gen.push_xmm(0);
+    //     }
+    //     else {
+    //         gen.emit("movaps %xmm0, %xmm?", i);
+    //     }
+    // }
+    // if(float_args.size() > 0) gen.pop_xmm(0);
+
+    // for(int i = 0; i < int_args.size(); ++i) {
+    //     int_args[i]->codegen(gen);
+    //     gen.emit("movq %rax, %?", REGS[i]);
+    // }
+
     for(int i = 0; i < float_args.size(); ++i) {
         float_args[i]->codegen(gen);
-        if(i == 0) {
-            gen.push_xmm(0);
-        }
-        else {
-            gen.emit("movaps %xmm0, %xmm?", i);
-        }
+        gen.push_xmm(0);
     }
-    if(float_args.size() > 0) gen.pop_xmm(0);
-
     for(int i = 0; i < int_args.size(); ++i) {
         int_args[i]->codegen(gen);
-        gen.emit("movq %rax, %?", REGS[i]);
+        gen.push("rax");
+    }
+
+    for(int i = int_args.size() - 1; i >= 0; --i) {
+        gen.pop(REGS[i]);
+    }
+    for(int i = float_args.size() - 1; i >= 0; --i) {
+        gen.pop_xmm(i);
     }
 
     // func call

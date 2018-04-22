@@ -389,7 +389,7 @@ extern NodePtr error_node;
 
 std::shared_ptr<IntNode> make_int_node(TokenPtr first_token, Type* int_type, long long value);
 std::shared_ptr<FloatNode> make_float_node(TokenPtr first_token, Type* float_type, double value);
-std::shared_ptr<StringNode> make_string_node(TokenPtr first_token, char* str, int encode_method);
+std::shared_ptr<StringNode> make_string_node(TokenPtr first_token, char* str, int len, int encode_method);
 std::shared_ptr<LocalVarNode> make_localvar_node(TokenPtr first_token, Type* var_type, char* name, Scope* scope);
 std::shared_ptr<GlobalVarNode> make_globalvar_node(TokenPtr first_token, Type* var_type, char* name, Scope* scope);
 std::shared_ptr<GlobalVarNode> make_static_localvar_node(TokenPtr first_token, Type* var_type, char* name, Scope* scope);

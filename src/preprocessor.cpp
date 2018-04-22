@@ -93,7 +93,7 @@ static TokenPtr stringize(TokenPtr templ, vector<TokenPtr>& args) {
         }
         buf.write("%s", args[i]->to_string());
     }
-    TokenPtr str = make_string(buf.data(), ENC_NONE, templ->get_pos());
+    TokenPtr str = make_string(buf.data(), buf.size(), ENC_NONE, templ->get_pos());
     templ->copy_aux(str);
     return str;
 }
@@ -766,7 +766,7 @@ void Preprocessor::init_predefined_macro() {
         return shared_ptr<PredefinedMacro>(new PredefinedMacro(handler));
     };
     auto subst_string = [&](char* str, TokenPtr tok) {
-        TokenPtr subst_tok = make_string(str, ENC_NONE, tok->get_pos());
+        TokenPtr subst_tok = make_string(str, strlen(str)+1, ENC_NONE, tok->get_pos());
         tok->copy_aux(subst_tok);
         return subst_tok;
     };
@@ -916,9 +916,11 @@ TokenPtr Preprocessor::get_token() {
             }
 
             Buffer buffer;
-            buffer.write("%s%s", dynamic_pointer_cast<String>(tok)->value,
-                dynamic_pointer_cast<String>(tok2)->value);
-            dynamic_pointer_cast<String>(tok)->value = buffer.data();
+            shared_ptr<String> stok = dynamic_pointer_cast<String>(tok);
+            shared_ptr<String> stok2 = dynamic_pointer_cast<String>(tok2);
+            buffer.write("%s%s", stok->value, stok2->value);
+            stok->value = buffer.data();
+            stok->size = stok->size + stok2->size;
         }
     }
     if(allow_undo) {

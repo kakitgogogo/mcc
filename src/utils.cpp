@@ -56,6 +56,27 @@ char* quote_string(char* s) {
     return b.data();
 }
 
+char* quote_string(char* s, int len) {
+    Buffer b;
+    for(int i = 0; i < len-1; ++i) {
+        if(s[i] == '\0') {
+            b.write("\\0");
+            continue;
+        }
+        char* q = quote(s[i]);
+        if(q) {
+            b.write("%s", q);
+        }
+        else if(isprint(s[i])) {
+            b.write("%c", s[i]);
+        }
+        else {
+            b.write("\\x%02x", s[i]);
+        }
+    }
+    return b.data();
+}
+
 char* quote_char(char c) {
     char* q = quote(c);
     if(q) {

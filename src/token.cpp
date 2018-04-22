@@ -42,8 +42,8 @@ std::shared_ptr<Token> make_char(char c, int enc, const Pos& pos) {
     return std::shared_ptr<Token>(tok);
 }
 
-std::shared_ptr<Token> make_string(char* s, int enc, const Pos& pos) {
-    Token* tok = new String(s, enc);
+std::shared_ptr<Token> make_string(char* s, int size, int enc, const Pos& pos) {
+    Token* tok = new String(s, size, enc);
     tok->filename =  pos.filename;
     tok->row = pos.row;
     tok->col = pos.col;
@@ -101,6 +101,6 @@ char* Char::to_string() {
 }
 
 char* String::to_string() {
-    return format("%s\"%s\"", get_encode_str(encode_method), quote_string(value));
+    return format("%s\"%s\"", get_encode_str(encode_method), quote_string(value, size));
 }
 
