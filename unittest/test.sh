@@ -5,7 +5,7 @@ do
     target="${filename%.*}"
     if [ "$extension" == "c" ]
     then
-        ../mcc -o $target $file
+        mcc -o $target $file
         ./$target
         rm $target
     fi

@@ -427,10 +427,10 @@ static void test_stringify() {
     TEST_ROUNDTRIP("null");
     TEST_ROUNDTRIP("false");
     TEST_ROUNDTRIP("true");
-    // test_stringify_number();
+    test_stringify_number();
     test_stringify_string();
-    // test_stringify_array();
-    // test_stringify_object();
+    test_stringify_array();
+    test_stringify_object();
 }
 
 static void test_access_null() {

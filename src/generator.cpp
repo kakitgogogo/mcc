@@ -964,11 +964,14 @@ void GlobalVarNode::codegen(Generator& gen) {
 }
 
 void FuncDesignatorNode::codegen(Generator& gen) {
-    error("internal error: FuncDesignatorNode cannot generate code");
+    SAVE_CURRENT_POS;
+    gen.emit_addr(shared_from_this());
+    // errorp(gen.current_pos, "internal error: FuncDesignatorNode cannot generate code");
 }
 
 void TypedefNode::codegen(Generator& gen) {
-    error("internal error: TypedefNode cannot generate code");
+    SAVE_CURRENT_POS;
+    errorp(gen.current_pos, "internal error: TypedefNode cannot generate code");
 }
 
 void UnaryOperNode::codegen(Generator& gen) {

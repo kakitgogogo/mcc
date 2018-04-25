@@ -1,6 +1,7 @@
 #include <stdio.h>  
 #include <stdlib.h>  
-#include <pthread.h>  
+#include <pthread.h> 
+#include <unistd.h> 
    
 void *thrd_func(void *arg);  
 pthread_t tid;  

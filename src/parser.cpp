@@ -101,7 +101,7 @@ static void check_struct_flexible_array(TokenPtr tok, vector<pair<char*, Type*>>
 static void untie_unnamed_struct(vector<pair<char*, Type*>>& fields, 
     Type* unnamed_struct, int offset) {
     
-    assert(unnamed_struct->kind == TK_STRUCT);
+    assert(unnamed_struct->kind == TK_STRUCT || unnamed_struct->kind == TK_UNION);
     auto fs = dynamic_cast<StructType*>(unnamed_struct)->fields;
     for(auto& f:fs) {
         Type* type = f.second;
