@@ -6,4 +6,4 @@ httpd: httpd.c
 client: simpleclient.c
 	mcc -o $@ $<
 clean:
-	rm httpd
+	rm httpd client

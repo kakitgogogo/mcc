@@ -384,7 +384,8 @@ void Generator::emit_addr(NodePtr node) {
         return;
     }
     case NK_DEREF: {
-        node->codegen(*this);
+        shared_ptr<UnaryOperNode> deref = dynamic_pointer_cast<UnaryOperNode>(node);
+        deref->operand->codegen(*this);
         return;
     }
     case NK_STRUCT_MEMBER: {
